@@ -1,0 +1,154 @@
+
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Reporte Ejecutivo: Análisis Comparativo IO</title>
+            <style>
+                body { font-family: 'Arial', sans-serif; margin: 40px; background: #f5f5f5; }
+                .container { max-width: 1000px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                h1 { color: #2c3e50; text-align: center; border-bottom: 3px solid #3498db; padding-bottom: 20px; }
+                h2 { color: #34495e; margin-top: 30px; }
+                .metric-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
+                .metric-value { font-size: 2em; font-weight: bold; }
+                .metric-label { font-size: 0.9em; opacity: 0.9; }
+                .recommendation { background: #e8f5e8; border-left: 4px solid #27ae60; padding: 15px; margin: 15px 0; }
+                .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                th { background-color: #3498db; color: white; }
+                .best { background-color: #d4edda; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>📊 Reporte Ejecutivo: Análisis Comparativo de Métodos de IO</h1>
+                
+                <div class="metric-card">
+                    <div class="metric-label">Fecha de Análisis</div>
+                    <div class="metric-value">22/08/2025</div>
+                </div>
+                
+                <h2>🎯 Resumen Ejecutivo</h2>
+                <p>Se evaluaron 6 enfoques diferentes para optimización de flotas pesqueras, comparando métodos clásicos de Investigación Operativa con técnicas modernas de Machine Learning y enfoques híbridos.</p>
+                
+                <h2>🏆 Mejores Métodos por Categoría</h2>
+                <div class="recommendation">
+                    <strong>🎯 Mejor Precisión (R²):</strong> Gradient Boosting (0.878)
+                </div>
+                <div class="recommendation">
+                    <strong>⚡ Menor Error (MSE):</strong> Gradient Boosting (169423.65)
+                </div>
+                <div class="recommendation">
+                    <strong>🚀 Mayor Velocidad:</strong> Neural Network (0.3 ms)
+                </div>
+                
+                <h2>📈 Tabla Comparativa Completa</h2>
+                <table>
+                    <tr>
+                        <th>Método</th>
+                        <th>R² Capturas</th>
+                        <th>MSE Capturas</th>
+                        <th>Tiempo (ms)</th>
+                        <th>Clasificación</th>
+                    </tr>
+        
+                    <tr class="">
+                        <td>Simplex Clásico</td>
+                        <td>0.000</td>
+                        <td>5005814.84</td>
+                        <td>1.7</td>
+                        <td>Estándar</td>
+                    </tr>
+            
+                    <tr class="">
+                        <td>Random Forest</td>
+                        <td>0.769</td>
+                        <td>320936.75</td>
+                        <td>11.4</td>
+                        <td>Estándar</td>
+                    </tr>
+            
+                    <tr class="best">
+                        <td>Gradient Boosting</td>
+                        <td>0.878</td>
+                        <td>169423.65</td>
+                        <td>0.5</td>
+                        <td>⭐ Destacado</td>
+                    </tr>
+            
+                    <tr class="">
+                        <td>SVM</td>
+                        <td>0.640</td>
+                        <td>499001.41</td>
+                        <td>10.3</td>
+                        <td>Estándar</td>
+                    </tr>
+            
+                    <tr class="best">
+                        <td>Neural Network</td>
+                        <td>0.847</td>
+                        <td>212889.75</td>
+                        <td>0.3</td>
+                        <td>⭐ Destacado</td>
+                    </tr>
+            
+                    <tr class="">
+                        <td>Híbrido</td>
+                        <td>0.000</td>
+                        <td>29991420.79</td>
+                        <td>4.0</td>
+                        <td>Estándar</td>
+                    </tr>
+            
+                </table>
+                
+                <h2>💡 Recomendaciones Estratégicas</h2>
+                
+                <div class="recommendation">
+                    <h3>🏛️ Para Problemas Lineales Simples</h3>
+                    <p><strong>Usar Simplex Clásico</strong> cuando el problema esté bien definido, las restricciones sean lineales y se requiera la solución óptima garantizada.</p>
+                </div>
+                
+                <div class="recommendation">
+                    <h3>🧠 Para Entornos Complejos con Datos</h3>
+                    <p><strong>Usar Random Forest o Gradient Boosting</strong> cuando se disponga de datos históricos abundantes y se necesite capturar patrones no lineales.</p>
+                </div>
+                
+                <div class="recommendation">
+                    <h3>🚀 Para Aplicaciones Críticas</h3>
+                    <p><strong>Usar Enfoque Híbrido</strong> cuando se requiera máxima robustez y se pueda invertir en desarrollo más complejo.</p>
+                </div>
+                
+                <div class="warning">
+                    <h3>⚠️ Consideraciones Importantes</h3>
+                    <ul>
+                        <li>Los métodos ML requieren datos de calidad y cantidad suficiente</li>
+                        <li>El Simplex garantiza optimalidad solo en problemas lineales</li>
+                        <li>Los enfoques híbridos requieren expertise en ambas áreas</li>
+                        <li>La elección depende del contexto específico del problema</li>
+                    </ul>
+                </div>
+                
+                <h2>🔮 Conclusiones y Próximos Pasos</h2>
+                <p>El análisis demuestra que no existe un método universalmente superior. La elección óptima depende de:</p>
+                <ul>
+                    <li><strong>Complejidad del problema:</strong> Lineal vs No-lineal</li>
+                    <li><strong>Disponibilidad de datos:</strong> Históricos vs Limitados</li>
+                    <li><strong>Recursos computacionales:</strong> Tiempo vs Precisión</li>
+                    <li><strong>Criticidad de la aplicación:</strong> Exploratoria vs Producción</li>
+                </ul>
+                
+                <div class="metric-card">
+                    <div class="metric-label">Recomendación General</div>
+                    <div class="metric-value">Enfoque Híbrido para Máximo Impacto</div>
+                </div>
+                
+                <p style="text-align: center; margin-top: 40px; color: #7f8c8d;">
+                    <em>Generado por el Sistema de Análisis Comparativo IO - CONIPE 2025</em>
+                </p>
+            </div>
+        </body>
+        </html>
+        
