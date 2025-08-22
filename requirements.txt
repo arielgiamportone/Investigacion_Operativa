@@ -19,6 +19,4 @@ scikit-learn>=1.3.0
 # Optimización
 scipy>=1.11.0
 
-# Utilidades
-warnings
-time
+# Utilidades (warnings y time son módulos built-in de Python)
