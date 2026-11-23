@@ -1,0 +1,8 @@
+__pycache__/
+.pytest_cache/
+# Salidas que generan los scripts complementarios (se regeneran al ejecutarlos)
+comparacion_metodos_io.png
+analisis_exploratorio_rutas.png
+visualizaciones_ml_rutas.html
+evolucion_io_simplex_ml.gif
+frame_*.png

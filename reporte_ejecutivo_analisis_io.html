@@ -1,154 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decidir y predecir en IO</title>
+<style>
+  :root { --fondo:#f5f5f5; --papel:#fff; --texto:#1f2933; --suave:#52606d; --borde:#d9dee3;
+          --acento:#2f6db5; --ok:#e7f4ea; --ok-borde:#2e8540; --aviso:#fff4d6; --aviso-borde:#c78a00;
+          --limita:#fde8e8; --neg:#b42318; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fondo:#111418; --papel:#1b2027; --texto:#e4e7eb; --suave:#9aa5b1; --borde:#323a45;
+            --acento:#7fb0f0; --ok:#173323; --ok-borde:#4caf6e; --aviso:#3a2f12; --aviso-borde:#d9a520;
+            --limita:#3d1f1f; --neg:#ff8a80; }
+  }
+  body { font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; margin:0; padding:24px 16px;
+         background:var(--fondo); color:var(--texto); line-height:1.55; }
+  .container { max-width:1000px; margin:0 auto; background:var(--papel); padding:32px;
+               border-radius:10px; border:1px solid var(--borde); }
+  h1 { margin-top:0; border-bottom:3px solid var(--acento); padding-bottom:16px; }
+  h2 { margin-top:36px; }
+  .nota { color:var(--suave); font-size:.92em; }
+  .aviso { background:var(--aviso); border-left:4px solid var(--aviso-borde); padding:14px 18px; margin:16px 0; }
+  .conclusion { background:var(--ok); border-left:4px solid var(--ok-borde); padding:14px 18px; margin:16px 0; }
+  .tabla { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; margin:16px 0; font-size:.95em; }
+  th, td { border:1px solid var(--borde); padding:8px 10px; text-align:left; }
+  th { background:var(--acento); color:#fff; }
+  td:not(:first-child) { text-align:right; font-variant-numeric: tabular-nums; }
+  tr.limita { background:var(--limita); font-weight:600; }
+  tr.base td:first-child { font-style:italic; }
+  tr.neg td:nth-child(2) { color:var(--neg); font-weight:700; }
+  tr.techo { color:var(--suave); }
+  code { background:var(--fondo); padding:1px 4px; border-radius:3px; }
+  .dos { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .dos > div { border:1px solid var(--borde); border-radius:8px; padding:12px 16px; }
+  @media (max-width: 640px) { .dos { grid-template-columns:1fr; } .container { padding:18px; } }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Decidir y predecir: Simplex y Machine Learning en una flota pesquera</h1>
+<p class="nota">Material docente · CONIPE 2025 · Generado el 23/11/2026 con
+<code>analisis_comparativo_io.py</code> (semilla 42). Todas las cifras salen de ejecutar ese script.</p>
 
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Reporte Ejecutivo: Análisis Comparativo IO</title>
-            <style>
-                body { font-family: 'Arial', sans-serif; margin: 40px; background: #f5f5f5; }
-                .container { max-width: 1000px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-                h1 { color: #2c3e50; text-align: center; border-bottom: 3px solid #3498db; padding-bottom: 20px; }
-                h2 { color: #34495e; margin-top: 30px; }
-                .metric-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
-                .metric-value { font-size: 2em; font-weight: bold; }
-                .metric-label { font-size: 0.9em; opacity: 0.9; }
-                .recommendation { background: #e8f5e8; border-left: 4px solid #27ae60; padding: 15px; margin: 15px 0; }
-                .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
-                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-                th { background-color: #3498db; color: white; }
-                .best { background-color: #d4edda; font-weight: bold; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>📊 Reporte Ejecutivo: Análisis Comparativo de Métodos de IO</h1>
-                
-                <div class="metric-card">
-                    <div class="metric-label">Fecha de Análisis</div>
-                    <div class="metric-value">22/08/2025</div>
-                </div>
-                
-                <h2>🎯 Resumen Ejecutivo</h2>
-                <p>Se evaluaron 6 enfoques diferentes para optimización de flotas pesqueras, comparando métodos clásicos de Investigación Operativa con técnicas modernas de Machine Learning y enfoques híbridos.</p>
-                
-                <h2>🏆 Mejores Métodos por Categoría</h2>
-                <div class="recommendation">
-                    <strong>🎯 Mejor Precisión (R²):</strong> Gradient Boosting (0.878)
-                </div>
-                <div class="recommendation">
-                    <strong>⚡ Menor Error (MSE):</strong> Gradient Boosting (169423.65)
-                </div>
-                <div class="recommendation">
-                    <strong>🚀 Mayor Velocidad:</strong> Neural Network (0.3 ms)
-                </div>
-                
-                <h2>📈 Tabla Comparativa Completa</h2>
-                <table>
-                    <tr>
-                        <th>Método</th>
-                        <th>R² Capturas</th>
-                        <th>MSE Capturas</th>
-                        <th>Tiempo (ms)</th>
-                        <th>Clasificación</th>
-                    </tr>
-        
-                    <tr class="">
-                        <td>Simplex Clásico</td>
-                        <td>0.000</td>
-                        <td>5005814.84</td>
-                        <td>1.7</td>
-                        <td>Estándar</td>
-                    </tr>
-            
-                    <tr class="">
-                        <td>Random Forest</td>
-                        <td>0.769</td>
-                        <td>320936.75</td>
-                        <td>11.4</td>
-                        <td>Estándar</td>
-                    </tr>
-            
-                    <tr class="best">
-                        <td>Gradient Boosting</td>
-                        <td>0.878</td>
-                        <td>169423.65</td>
-                        <td>0.5</td>
-                        <td>⭐ Destacado</td>
-                    </tr>
-            
-                    <tr class="">
-                        <td>SVM</td>
-                        <td>0.640</td>
-                        <td>499001.41</td>
-                        <td>10.3</td>
-                        <td>Estándar</td>
-                    </tr>
-            
-                    <tr class="best">
-                        <td>Neural Network</td>
-                        <td>0.847</td>
-                        <td>212889.75</td>
-                        <td>0.3</td>
-                        <td>⭐ Destacado</td>
-                    </tr>
-            
-                    <tr class="">
-                        <td>Híbrido</td>
-                        <td>0.000</td>
-                        <td>29991420.79</td>
-                        <td>4.0</td>
-                        <td>Estándar</td>
-                    </tr>
-            
-                </table>
-                
-                <h2>💡 Recomendaciones Estratégicas</h2>
-                
-                <div class="recommendation">
-                    <h3>🏛️ Para Problemas Lineales Simples</h3>
-                    <p><strong>Usar Simplex Clásico</strong> cuando el problema esté bien definido, las restricciones sean lineales y se requiera la solución óptima garantizada.</p>
-                </div>
-                
-                <div class="recommendation">
-                    <h3>🧠 Para Entornos Complejos con Datos</h3>
-                    <p><strong>Usar Random Forest o Gradient Boosting</strong> cuando se disponga de datos históricos abundantes y se necesite capturar patrones no lineales.</p>
-                </div>
-                
-                <div class="recommendation">
-                    <h3>🚀 Para Aplicaciones Críticas</h3>
-                    <p><strong>Usar Enfoque Híbrido</strong> cuando se requiera máxima robustez y se pueda invertir en desarrollo más complejo.</p>
-                </div>
-                
-                <div class="warning">
-                    <h3>⚠️ Consideraciones Importantes</h3>
-                    <ul>
-                        <li>Los métodos ML requieren datos de calidad y cantidad suficiente</li>
-                        <li>El Simplex garantiza optimalidad solo en problemas lineales</li>
-                        <li>Los enfoques híbridos requieren expertise en ambas áreas</li>
-                        <li>La elección depende del contexto específico del problema</li>
-                    </ul>
-                </div>
-                
-                <h2>🔮 Conclusiones y Próximos Pasos</h2>
-                <p>El análisis demuestra que no existe un método universalmente superior. La elección óptima depende de:</p>
-                <ul>
-                    <li><strong>Complejidad del problema:</strong> Lineal vs No-lineal</li>
-                    <li><strong>Disponibilidad de datos:</strong> Históricos vs Limitados</li>
-                    <li><strong>Recursos computacionales:</strong> Tiempo vs Precisión</li>
-                    <li><strong>Criticidad de la aplicación:</strong> Exploratoria vs Producción</li>
-                </ul>
-                
-                <div class="metric-card">
-                    <div class="metric-label">Recomendación General</div>
-                    <div class="metric-value">Enfoque Híbrido para Máximo Impacto</div>
-                </div>
-                
-                <p style="text-align: center; margin-top: 40px; color: #7f8c8d;">
-                    <em>Generado por el Sistema de Análisis Comparativo IO - CONIPE 2025</em>
-                </p>
-            </div>
-        </body>
-        </html>
-        
+<div class="aviso">
+<strong>⚠️ Los datos son sintéticos.</strong> No proceden de ninguna pesquería real. Se generan con
+<code>nucleo_io.py</code>: el rendimiento de cada tipo de barco (50, 120 y 200 kg por salida en calma) se
+multiplica por factores de temperatura, fase lunar, estación y viento (el viento penaliza más a los barcos
+pequeños), y a la captura se le suma un ruido aleatorio del 10 % (15 % en el histórico por barco). La salinidad,
+la altura de olas y las variables de mercado no influyen en la captura. Un buen R² solo demuestra que un modelo
+recupera esa fórmula; no dice nada sobre el mundo real.
+</div>
+
+<h2>Dos preguntas distintas</h2>
+<div class="dos">
+  <div><h3>🏛️ Decidir (Simplex / PL)</h3>
+  <p>Con unos rendimientos y unos recursos dados, ¿cuántos barcos de cada tipo enviar? Se evalúa por la
+  solución óptima, los recursos que limitan y los precios sombra. <strong>No se mide con R² ni MSE</strong>:
+  no predice nada.</p></div>
+  <div><h3>🧠 Predecir (Machine Learning)</h3>
+  <p>A partir de las condiciones, ¿cuánto se va a capturar? Se evalúa con R², MSE y validación cruzada,
+  frente a líneas base honestas. <strong>No decide nada</strong> por sí solo.</p></div>
+</div>
+<p>Por eso no tiene sentido ponerlos en la misma tabla de precisión. Lo que sí se puede comparar es
+<em>cómo de buena es una decisión</em> según de dónde salgan sus coeficientes (sección 3).</p>
+
+<h2>1. Decidir: programación lineal</h2>
+<p>Maximizar la captura esperada <code>50·P + 120·M + 200·G</code> (kg), sujeto a combustible
+(<code>20P + 50M + 100G ≤ 3.000</code> L), tripulación
+(<code>2P + 5M + 8G ≤ 150</code>), presupuesto
+(<code>1000P + 2500M + 5000G ≤ 125.000</code> $) y barcos disponibles
+(P ≤ 20, M ≤ 15, G ≤ 10). Se resuelve con HiGHS (<code>scipy.optimize.linprog</code>).</p>
+<div class="tabla"><table>
+<tr><th>Tipo de barco</th><th>kg por barco</th><th>Barcos en el óptimo</th><th>Disponibles</th>
+<th>kg extra por un barco más</th></tr>
+<tr><td>pequeño</td><td>50</td><td>20,00</td><td>20</td><td>2,00</td></tr><tr><td>mediano</td><td>120</td><td>6,00</td><td>15</td><td>0,00</td></tr><tr><td>grande</td><td>200</td><td>10,00</td><td>10</td><td>8,00</td></tr>
+<tr><td><strong>Captura óptima</strong></td><td></td><td><strong>3.720,0 kg</strong></td><td></td><td></td></tr>
+</table></div>
+<div class="tabla"><table>
+<tr><th>Recurso</th><th>Disponible</th><th>Usado</th><th>Holgura</th><th>¿Limita?</th>
+<th>Precio sombra (kg por unidad)</th><th>Rango donde vale ese precio</th></tr>
+<tr class=''><td>combustible (L)</td><td>3.000</td><td>1.700,0</td><td>1.300,0</td><td>no</td><td>0,000</td><td>1.701 – ∞</td></tr><tr class='limita'><td>tripulación (personas)</td><td>150</td><td>150,0</td><td>0,0</td><td>sí</td><td>24,000</td><td>120 – 195</td></tr><tr class=''><td>presupuesto ($)</td><td>125.000</td><td>85.000,0</td><td>40.000,0</td><td>no</td><td>0,000</td><td>85.000 – ∞</td></tr>
+</table></div>
+<p class="nota">Precio sombra: cuántos kg más se capturarían con una unidad más del recurso
+(<code>res.ineqlin.marginals</code> de HiGHS, con el signo cambiado porque <code>linprog</code> minimiza).
+El rango se obtiene re-resolviendo la PL con el recurso desplazado hasta que el precio cambia. En este
+modelo el presupuesto por barco es exactamente 50 veces el combustible por barco, así que ambas restricciones
+son proporcionales: solo puede limitar la más estricta de las dos. La solución admite barcos fraccionarios
+(relajación lineal); exigir enteros sería un problema de programación entera.</p>
+<div class="conclusion">Con los recursos del escenario base, el plan óptimo captura 3.720,0 kg. El recurso que limita es <strong>tripulación</strong> (precio sombra 24,00 kg por persona, válido aproximadamente entre 120 y 195). Sobran 1.300 L de combustible y 40.000 $ de presupuesto: conseguir más de esos recursos no aumentaría la captura (precio sombra 0). </div>
+
+<h2>2. Predecir: capturas a partir de las condiciones</h2>
+<p>700 escenarios de entrenamiento y 300 de test. Variables de entrada: barcos de cada tipo,
+recursos, clima, mercado, mes y fase lunar. R² de validación cruzada con 5 particiones sobre el conjunto de
+entrenamiento. Los R² <strong>no se recortan</strong>: un valor negativo indica un modelo peor que predecir la media.</p>
+<div class="tabla"><table>
+<tr><th>Modelo</th><th>R² test</th><th>R² validación cruzada</th><th>MSE test (kg²)</th><th>MAE test (kg)</th></tr>
+<tr class='base neg'><td>Media (línea base)</td><td>-0,003</td><td>-0,011 ± 0,010</td><td>906.277</td><td>734,7</td></tr><tr class='base'><td>Regresión lineal</td><td>0,791</td><td>0,784 ± 0,034</td><td>189.058</td><td>330,8</td></tr><tr class=''><td>Random Forest</td><td>0,826</td><td>0,789 ± 0,033</td><td>157.257</td><td>293,0</td></tr><tr class=''><td>Gradient Boosting</td><td>0,892</td><td>0,862 ± 0,036</td><td>97.224</td><td>217,4</td></tr><tr class=''><td>SVM (RBF)</td><td>0,673</td><td>0,655 ± 0,039</td><td>295.608</td><td>353,6</td></tr><tr class=''><td>Red neuronal (MLP)</td><td>0,809</td><td>0,789 ± 0,044</td><td>173.009</td><td>320,9</td></tr><tr class='techo'><td>Techo: fórmula verdadera sin ruido (no es un modelo)</td><td>0,968</td><td>—</td><td>28.958</td><td>119,9</td></tr>
+</table></div>
+<div class="conclusion">El mejor modelo de ML es <strong>Gradient Boosting</strong> (R² = 0,892 en test). La regresión lineal obtiene 0,791 y la media -0,003. La regresión lineal no empata (queda 0,102 por debajo): la captura es lineal en el número de barcos pero se multiplica por factores climáticos, y un modelo lineal en las variables originales no puede representar ese producto. El techo alcanzable es R² = 0,968 (la fórmula verdadera sin ruido): el ML no descubre nada nuevo, solo se acerca a la fórmula con la que se generaron los datos. La media sale ligeramente negativa porque usa la media del entrenamiento, no la del test: es el R² que corresponde a «no saber nada». </div>
+
+<h2>3. Predecir y luego optimizar (enfoque híbrido)</h2>
+<p>El rendimiento de cada tipo de barco depende del clima y no se conoce de antemano. Se entrena un modelo por
+tipo de barco con un histórico de 3000 salidas (captura por barco según el clima). Después, en
+300 escenarios nuevos (clima y recursos aleatorios), la PL decide con los rendimientos
+estimados. La decisión se evalúa con los rendimientos <em>verdaderos</em>: captura obtenida frente a la
+captura óptima que se habría logrado conociéndolos (100 %).</p>
+<div class="tabla"><table>
+<tr><th>Origen de los coeficientes de la PL</th><th>% del óptimo (media)</th><th>Mediana</th><th>Peor caso</th>
+<th>Escenarios con decisión óptima</th><th>kg perdidos (media)</th><th>R² del rendimiento (peq./med./gr.)</th></tr>
+<tr><td>Coeficientes nominales (sin ML)</td><td>91,16 %</td><td>96,74 %</td><td>43,5 %</td><td>38,0 %</td><td>156,2</td><td>—</td></tr><tr><td>Regresión lineal + PL</td><td>99,74 %</td><td>100,00 %</td><td>91,7 %</td><td>91,0 %</td><td>4,1</td><td>0,802 / 0,719 / 0,541</td></tr><tr><td>Random Forest + PL</td><td>99,74 %</td><td>100,00 %</td><td>89,1 %</td><td>90,3 %</td><td>5,0</td><td>0,906 / 0,814 / 0,730</td></tr><tr><td>Gradient Boosting + PL</td><td>99,79 %</td><td>100,00 %</td><td>88,2 %</td><td>93,3 %</td><td>3,8</td><td>0,915 / 0,849 / 0,751</td></tr>
+</table></div>
+<p class="nota">Captura óptima media con rendimientos verdaderos: 2.195,1 kg por escenario.
+«Decisión óptima» = al menos el 99,9 % del óptimo.</p>
+<div class="conclusion">Decidir con los rendimientos nominales (los de un día en calma) logra en promedio el 91,2 % de la captura óptima, con un peor caso del 43,5 %. Estimar los rendimientos con ML y decidir con la PL eleva la media al 99,8 % (Gradient Boosting + PL; peor caso 88,2 %). Con la regresión lineal se llega al 99,7 %. La mejora existe porque, en este mundo sintético, el viento afecta de forma distinta a cada tipo de barco y eso cambia cuál es la mejor combinación. Si el clima escalara por igual todos los rendimientos, la decisión óptima no cambiaría y la predicción no aportaría nada a la decisión.</div>
+
+<h2>Recomendaciones</h2>
+<ul>
+<li><strong>Optimizar y predecir responden preguntas distintas.</strong> La PL dice qué hacer con unos
+coeficientes dados y qué recurso conviene ampliar (precios sombra); el ML estima cantidades inciertas. No se
+elige uno «en lugar» del otro.</li>
+<li><strong>Para decidir</strong> con un modelo lineal bien planteado, la PL da el óptimo y además explica la
+decisión: qué recursos limitan, cuánto vale cada unidad adicional y en qué rango.</li>
+<li><strong>Para predecir</strong>, compare siempre con la media y con una regresión lineal antes de usar un
+modelo más complejo, y desconfíe de un R² alto en datos sintéticos: puede ser solo la fórmula de generación.</li>
+<li><strong>El ML aporta a la decisión</strong> cuando hay que estimar parámetros inciertos que luego alimentan
+la optimización. Cuando un coeficiente del modelo de decisión es incierto y depende de condiciones observables (aquí, el rendimiento de cada tipo de barco según el clima), conviene estimarlo con datos y luego optimizar. En este análisis eso mejora la decisión en 8,6 puntos porcentuales de media.</li>
+</ul>
+
+<h2>Limitaciones</h2>
+<ul>
+<li>Datos sintéticos con una estructura elegida para el curso; con otra estructura las cifras cambiarían.</li>
+<li>La PL usa variables continuas y un único periodo; no modela riesgo ni incertidumbre explícita
+(programación estocástica u optimización robusta serían los siguientes pasos).</li>
+<li>Los hiperparámetros de los modelos no se han ajustado; el objetivo es docente, no competir en precisión.</li>
+</ul>
+<p class="nota" style="text-align:center;margin-top:32px">Gráficos interactivos:
+<code>analisis_comparativo_io_completo.html</code> · Cifras en bruto: <code>resultados_analisis_io.json</code></p>
+</div>
+</body>
+</html>
