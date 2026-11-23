@@ -490,8 +490,8 @@
                 <div class="timeline-item">
                     <div class="timeline-year">2025</div>
                     <div class="timeline-content">
-                        <h3>🚀 Síntesis Híbrida</h3>
-                        <p>Combinación perfecta de métodos clásicos y modernos con IA.</p>
+                        <h3>🚀 Predecir y optimizar</h3>
+                        <p>El ML estima lo incierto; la optimización decide con esas estimaciones.</p>
                         <button class="boton-interactivo" onclick="mostrarDetalle('2025')">Ver Detalles</button>
                     </div>
                 </div>
@@ -504,7 +504,7 @@
                 '1947': 'El método Simplex permitió resolver problemas de optimización lineal de manera sistemática, estableciendo las bases de la Investigación Operativa moderna.',
                 '1980': 'Los algoritmos de punto interior y la programación no lineal permitieron abordar problemas más complejos y de mayor escala.',
                 '2000': 'Machine Learning introdujo la capacidad de aprender de datos históricos y predecir comportamientos futuros sin programación explícita.',
-                '2025': 'La síntesis híbrida combina la precisión matemática del Simplex con la adaptabilidad del ML, creando sistemas optimizados y inteligentes.'
+                '2025': 'Optimizar y predecir responden preguntas distintas. Se combinan cuando el ML estima parámetros inciertos (por ejemplo, el rendimiento de cada barco según el clima) que luego alimentan la optimización.'
             };
             
             alert(`Año ${año}:
@@ -542,24 +542,30 @@ ${detalles[año]}`);
                 </div>
             </div>
             
+            
+            <h3>Cifras del análisis del curso</h3>
+            <p><strong>⚠️ Datos sintéticos</strong>, generados con una fórmula conocida (ver
+            <code>nucleo_io.py</code>). Salen de ejecutar <code>analisis_comparativo_io.py</code>;
+            no describen ninguna flota real.</p>
             <div class="metricas-grid">
                 <div class="metrica-card">
-                    <div class="metrica-valor" data-valor="340">0</div>
-                    <div class="metrica-label">% Incremento en Capturas</div>
+                    <div class="metrica-valor">3.720 kg</div>
+                    <div class="metrica-label">Captura óptima del modelo base (PL). Limita: tripulación</div>
                 </div>
                 <div class="metrica-card">
-                    <div class="metrica-valor" data-valor="45">0</div>
-                    <div class="metrica-label">% Reducción Combustible</div>
+                    <div class="metrica-valor">0,89</div>
+                    <div class="metrica-label">R² de Gradient Boosting al predecir capturas (regresión lineal: 0,79; techo: 0,97)</div>
                 </div>
                 <div class="metrica-card">
-                    <div class="metrica-valor" data-valor="87">0</div>
-                    <div class="metrica-label">% Precisión ML</div>
+                    <div class="metrica-valor">91,2 %</div>
+                    <div class="metrica-label">De la captura óptima, decidiendo con rendimientos nominales (sin ML)</div>
                 </div>
                 <div class="metrica-card">
-                    <div class="metrica-valor" data-valor="280">0</div>
-                    <div class="metrica-label">% Incremento Rentabilidad</div>
+                    <div class="metrica-valor">99,8 %</div>
+                    <div class="metrica-label">De la captura óptima, estimando rendimientos con ML y decidiendo con PL (Gradient Boosting + PL)</div>
                 </div>
             </div>
+        </div>
         </div>
         
                     
@@ -598,13 +604,13 @@ caracteristicas = [
                         </div>
                         
                         <h3>2025: La Convergencia</h3>
-                        <p>En 2025, ya no hay que elegir entre el Simplex y el Machine Learning. La nueva generación los <strong>combina</strong> en sistemas híbridos que aprovechan lo mejor de ambos mundos.</p>
+                        <p>En 2025, ya no hay que elegir entre el Simplex y el Machine Learning, porque nunca compitieron: uno <strong>decide</strong> y el otro <strong>predice</strong>. Se combinan cuando el ML estima los parámetros inciertos que después usa la optimización.</p>
                     </div>
                     
                     <div class="seccion" id="impacto">
                         <h2>🎯 El Impacto Transformador</h2>
                         
-                        <h3>Evolución de la Capacidad de Optimización</h3>
+                        <h3>Qué aportó cada etapa</h3>
                         <table class="tabla-comparativa">
                             <thead>
                                 <tr>
@@ -612,7 +618,6 @@ caracteristicas = [
                                     <th>Enfoque</th>
                                     <th>Fortalezas</th>
                                     <th>Limitaciones</th>
-                                    <th>Capacidad Relativa</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -621,28 +626,24 @@ caracteristicas = [
                                     <td>Simplex Clásico</td>
                                     <td>Precisión matemática, Soluciones óptimas</td>
                                     <td>Linealidad, Determinismo</td>
-                                    <td>1.0x</td>
                                 </tr>
                                 <tr>
                                     <td><strong>1980-2000</strong></td>
                                     <td>Programación Avanzada</td>
                                     <td>Problemas no lineales, Mayor escala</td>
                                     <td>Complejidad computacional</td>
-                                    <td>3.2x</td>
                                 </tr>
                                 <tr>
                                     <td><strong>2000-2020</strong></td>
                                     <td>Machine Learning</td>
                                     <td>Aprendizaje de patrones, Adaptabilidad</td>
                                     <td>Caja negra, Necesidad de datos</td>
-                                    <td>6.8x</td>
                                 </tr>
                                 <tr>
                                     <td><strong>2020-2025</strong></td>
-                                    <td>IA Híbrida</td>
-                                    <td>Combina precisión y adaptabilidad</td>
+                                    <td>Predecir y optimizar</td>
+                                    <td>El ML estima coeficientes; la PL decide</td>
                                     <td>Complejidad de implementación</td>
-                                    <td>12.5x</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -652,7 +653,7 @@ caracteristicas = [
                         <h2>🔮 El Futuro que se Avecina</h2>
                         
                         <h3>La Próxima Frontera: Computación Cuántica</h3>
-                        <p>La próxima generación está desarrollando el primer <strong>optimizador cuántico</strong> para flotas pesqueras, capaz de optimizar simultáneamente miles de variables en tiempo real.</p>
+                        <p><em>(Especulativo.)</em> La computación cuántica se investiga para problemas de optimización combinatoria; hoy no hay pruebas de que supere a los métodos clásicos en problemas como este. El código siguiente es solo ilustrativo.</p>
                         
                         <div class="codigo" data-language="Python">
                             <pre>class OptimizadorCuantico:
@@ -662,8 +663,7 @@ caracteristicas = [
         self.backend_cuantico = 'IBM_Quantum_Network'
     
     def optimizar_flota_global(self, flotas_mundiales):
-        # Optimización simultánea de 10,000+ barcos
-        # Tiempo de ejecución: segundos vs días
+        # Ilustrativo: no existe un "optimizador cuántico de flotas"
         pass</pre>
                         </div>
                         
@@ -749,7 +749,7 @@ caracteristicas = [
                 });
             });
             
-            document.querySelectorAll('.metrica-valor').forEach(contador => {
+            document.querySelectorAll('.metrica-valor[data-valor]').forEach(contador => {
                 contadorObserver.observe(contador);
             });
             

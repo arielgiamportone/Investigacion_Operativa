@@ -19,6 +19,10 @@ from matplotlib.patches import Polygon, Circle, FancyBboxPatch
 import seaborn as sns
 from PIL import Image, ImageDraw, ImageFont
 import os
+import json
+from pathlib import Path
+
+DIRECTORIO = Path(__file__).resolve().parent
 
 # Configuración de estilo
 plt.style.use('seaborn-v0_8')
@@ -276,7 +280,7 @@ class AnimacionEvolucionIO:
             "🚀 Optimización global + local",
             "🧠 Aprendizaje continuo",
             "⚡ Adaptación en tiempo real",
-            "🎯 Precisión mejorada",
+            "🎯 Coeficientes estimados con datos",
             "🔄 Retroalimentación automática"
         ]
         
@@ -297,57 +301,57 @@ class AnimacionEvolucionIO:
         fig.suptitle('EVOLUCIÓN DE LA INVESTIGACIÓN OPERATIVA: 1947-2025', 
                     fontsize=18, fontweight='bold')
         
-        # Gráfico 1: Capacidad de optimización en el tiempo
-        años = [1947, 1980, 2000, 2025]
-        capacidad = [1, 3, 6, 10]
-        metodos = ['Simplex', 'Prog. Avanzada', 'ML Clásico', 'IA Híbrida']
-        
-        ax1.plot(años, capacidad, 'o-', linewidth=4, markersize=12, color='#FF6B6B')
-        ax1.set_title('Evolución de la Capacidad de Optimización')
-        ax1.set_xlabel('Año')
-        ax1.set_ylabel('Capacidad Relativa')
-        ax1.grid(True, alpha=0.3)
-        
-        for i, (año, cap, met) in enumerate(zip(años, capacidad, metodos)):
-            ax1.annotate(met, (año, cap), textcoords="offset points", 
-                        xytext=(0,15), ha='center', fontsize=10)
-        
-        # Gráfico 2: Complejidad vs Precisión
-        complejidad = [2, 5, 7, 9]
-        precision = [6, 7, 8, 9.5]
+        # Antes este fotograma mostraba "capacidad", "precisión" y puntuaciones 1-10
+        # inventadas. Ahora muestra qué pregunta responde cada método y las cifras
+        # reales del análisis del curso (datos sintéticos), si ya se ha ejecutado.
         colores = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
-        
-        scatter = ax2.scatter(complejidad, precision, s=[200, 300, 400, 500], 
-                             c=colores, alpha=0.7)
-        ax2.set_title('Complejidad vs Precisión')
-        ax2.set_xlabel('Complejidad Computacional')
-        ax2.set_ylabel('Precisión de Resultados')
-        ax2.grid(True, alpha=0.3)
-        
-        for i, met in enumerate(metodos):
-            ax2.annotate(met, (complejidad[i], precision[i]), 
-                        xytext=(5, 5), textcoords='offset points')
-        
-        # Gráfico 3: Tipos de problemas resueltos
-        problemas = ['Lineales', 'No Lineales', 'Estocásticos', 'Dinámicos', 'Multi-objetivo']
-        simplex_score = [10, 2, 1, 2, 3]
-        ml_score = [6, 8, 9, 7, 6]
-        hibrido_score = [10, 9, 9, 9, 9]
-        
-        x = np.arange(len(problemas))
-        width = 0.25
-        
-        ax3.bar(x - width, simplex_score, width, label='Simplex', color='#FF6B6B', alpha=0.8)
-        ax3.bar(x, ml_score, width, label='ML', color='#4ECDC4', alpha=0.8)
-        ax3.bar(x + width, hibrido_score, width, label='Híbrido', color='#96CEB4', alpha=0.8)
-        
-        ax3.set_title('Capacidad por Tipo de Problema')
-        ax3.set_ylabel('Puntuación (1-10)')
-        ax3.set_xticks(x)
-        ax3.set_xticklabels(problemas, rotation=45, ha='right')
-        ax3.legend()
-        ax3.grid(True, alpha=0.3)
-        
+        resultados = None
+        ruta_json = DIRECTORIO / 'resultados_analisis_io.json'
+        if ruta_json.exists():
+            resultados = json.loads(ruta_json.read_text(encoding='utf-8'))
+
+        # Gráfico 1: dos preguntas distintas
+        ax1.axis('off')
+        ax1.set_title('Dos preguntas distintas')
+        ax1.text(0.02, 0.85, 'DECIDIR (Simplex / PL)', fontsize=13, fontweight='bold', color='#FF6B6B')
+        ax1.text(0.02, 0.62, '¿Cuántos barcos enviar con estos recursos?\n'
+                 'Se mide por: óptimo, recursos que limitan,\nprecios sombra.', fontsize=11)
+        ax1.text(0.02, 0.38, 'PREDECIR (Machine Learning)', fontsize=13, fontweight='bold', color='#45B7D1')
+        ax1.text(0.02, 0.15, '¿Cuánto se capturará con este clima?\n'
+                 'Se mide por: R², MSE, validación cruzada,\nfrente a la media y la regresión lineal.', fontsize=11)
+
+        if resultados:
+            # Gráfico 2: calidad de la decisión
+            hib = resultados['hibrido']['tabla']
+            nombres = [f['estrategia'].replace(' + PL', '\n+ PL').replace(' (sin ML)', '\n(sin ML)') for f in hib]
+            valores = [f['pct_optimo_media'] for f in hib]
+            barras = ax2.bar(range(len(hib)), valores, color=colores[:len(hib)], alpha=0.8)
+            ax2.set_xticks(range(len(hib)))
+            ax2.set_xticklabels(nombres, fontsize=9)
+            ax2.set_ylim(min(valores) - 5, 101)
+            for b, v in zip(barras, valores):
+                ax2.text(b.get_x() + b.get_width() / 2, v + 0.3, f'{v:.1f} %', ha='center')
+            ax2.set_title('Predecir y optimizar: % de la captura óptima\n(datos sintéticos)')
+
+            # Gráfico 3: R² de predicción frente a líneas base
+            pred = resultados['prediccion']['tabla']
+            ax3.bar(range(len(pred)), [f['r2_test'] for f in pred],
+                    color=['#9DA5B4' if f['modelo'].startswith(('Media', 'Regresión')) else '#45B7D1'
+                           for f in pred])
+            ax3.axhline(resultados['prediccion']['techo']['r2'], ls='--', color='green',
+                        label='techo (fórmula verdadera)')
+            ax3.axhline(0, color='black', lw=0.8)
+            ax3.set_xticks(range(len(pred)))
+            ax3.set_xticklabels([f['modelo'] for f in pred], rotation=30, ha='right', fontsize=9)
+            ax3.set_ylabel('R² en test (sin recortar)')
+            ax3.set_title('Predecir: R² de capturas (datos sintéticos)')
+            ax3.legend()
+        else:
+            for ax in (ax2, ax3):
+                ax.axis('off')
+                ax.text(0.5, 0.5, 'Ejecute analisis_comparativo_io.py\npara ver las cifras',
+                        ha='center', va='center', fontsize=12)
+
         # Gráfico 4: Timeline con hitos
         ax4.set_xlim(1940, 2030)
         ax4.set_ylim(-1, 4)
@@ -355,9 +359,9 @@ class AnimacionEvolucionIO:
         eventos = [
             (1947, 'Dantzig inventa\nel Simplex'),
             (1984, 'Algoritmo de\nKarmarkar'),
-            (1995, 'SVM y Random\nForest'),
+            (1995, 'SVM (1995) y\nRandom Forest (2001)'),
             (2006, 'Deep Learning\nRenaissance'),
-            (2025, 'IA Híbrida\nModerna')
+            (2025, 'Predecir y\noptimizar')
         ]
         
         for i, (año, evento) in enumerate(eventos):
@@ -396,28 +400,36 @@ class AnimacionEvolucionIO:
         frame_paths = []
         for i, func in enumerate(frames_funciones):
             fig = func()
-            filename = f'C:\\Users\\Ariel Giamporte\\Desktop\\Conipe2025\\curso_alfabetizacion_CONIPE25-main\\extras\\Investigacion_Operativa\\frame_{i+1}.png'
+            filename = str(DIRECTORIO / f'frame_{i+1}.png')
             fig.savefig(filename, dpi=150, bbox_inches='tight')
             frame_paths.append(filename)
             plt.close(fig)
             print(f"✅ Frame {i+1}/5 creado")
         
         # Crear GIF animado
+        # Todos los fotogramas sobre un lienzo blanco del mismo tamaño (con
+        # bbox_inches='tight' cada PNG sale de un tamaño distinto y el GIF se
+        # recortaba y mezclaba restos del fotograma anterior).
+        originales = [Image.open(path).convert('RGB') for path in frame_paths]
+        ancho = max(im.width for im in originales)
+        alto = max(im.height for im in originales)
         images = []
-        for path in frame_paths:
-            img = Image.open(path)
-            # Mantener cada frame por 3 segundos (3000ms)
+        for im in originales:
+            lienzo = Image.new('RGB', (ancho, alto), 'white')
+            lienzo.paste(im, ((ancho - im.width) // 2, (alto - im.height) // 2))
+            # Mantener cada frame por 3 segundos (3 x 1000 ms)
             for _ in range(3):
-                images.append(img)
+                images.append(lienzo)
         
         # Guardar GIF
-        gif_path = 'C:\\Users\\Ariel Giamporte\\Desktop\\Conipe2025\\curso_alfabetizacion_CONIPE25-main\\extras\\Investigacion_Operativa\\evolucion_io_simplex_ml.gif'
+        gif_path = str(DIRECTORIO / 'evolucion_io_simplex_ml.gif')
         images[0].save(
             gif_path,
             save_all=True,
             append_images=images[1:],
             duration=1000,  # 1 segundo por frame
-            loop=0
+            loop=0,
+            disposal=2
         )
         
         # Limpiar archivos temporales
@@ -433,7 +445,7 @@ def main():
     """
     print("🎬 CREACIÓN DE ANIMACIÓN: EVOLUCIÓN DE LA INVESTIGACIÓN OPERATIVA")
     print("=" * 70)
-    print("Del Método Simplex (1947) a la Inteligencia Artificial Híbrida (2025)")
+    print("Del Método Simplex (1947) a la combinación de predicción y optimización (2025)")
     print("=" * 70)
     
     animador = AnimacionEvolucionIO()
@@ -444,7 +456,7 @@ def main():
     print("1947: Simplex - Optimización lineal determinística")
     print("1980s: Programación avanzada - Problemas de gran escala")
     print("2000s: Machine Learning - Aprendizaje de patrones")
-    print("2025: IA Híbrida - Combinación de todas las técnicas")
+    print("2025: Predecir y optimizar - el ML estima coeficientes, la PL decide")
     
     print("\n🎯 IMPACTO EN LA INDUSTRIA PESQUERA:")
     print("=" * 35)
