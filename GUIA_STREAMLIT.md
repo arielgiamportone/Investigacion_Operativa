@@ -45,10 +45,10 @@ La aplicación se abrirá automáticamente en: `http://localhost:8501`
 ### 2. **Pestaña Simplex 🏛️**
 
 #### Características:
-- Optimización determinística garantizada
-- Solución óptima matemática
+- Solución óptima del modelo lineal (HiGHS)
+- Tabla de recursos: uso, holgura y **precio sombra** (kg adicionales por una unidad más de cada recurso)
 - Visualización 3D del espacio de soluciones
-- Tiempo de ejecución ultra-rápido
+- La PL **decide**; no predice, así que no se evalúa con R² ni MSE
 
 #### Cómo usar:
 1. Ajustar parámetros en la barra lateral
@@ -58,8 +58,8 @@ La aplicación se abrirá automáticamente en: `http://localhost:8501`
 ### 3. **Pestaña Machine Learning 🧠**
 
 #### Características:
-- 4 modelos diferentes: Random Forest, Gradient Boosting, SVM, Neural Network
-- Métricas de rendimiento (R², MSE, MAE)
+- 4 modelos (Random Forest, Gradient Boosting, SVM, Neural Network) y 2 líneas base (media y regresión lineal)
+- Métricas de rendimiento (R², MSE, MAE); el R² se muestra sin recortar, aunque sea negativo
 - Predicciones vs valores reales
 - Comparación visual de modelos
 
@@ -70,19 +70,19 @@ La aplicación se abrirá automáticamente en: `http://localhost:8501`
 4. Clic en **"🔮 Predecir con ML"**
 5. Analizar métricas y gráficos de rendimiento
 
-### 4. **Pestaña Comparación 📊**
+### 4. **Pestaña Decidir vs. predecir 🔀**
 
 #### Características:
-- Comparación directa de velocidad de ejecución
-- Comparación de precisión entre modelos ML
-- Tabla comparativa completa
-- Recomendaciones automáticas
+- Explica por qué la PL y el ML no se comparan en una misma tabla de precisión o velocidad
+- Tabla de modelos de predicción frente a las líneas base
+- **Predecir y optimizar** con las condiciones de la barra lateral: plan con rendimientos nominales,
+  plan con rendimientos estimados por ML y plan con los rendimientos verdaderos (conocidos porque los
+  datos son sintéticos), cada uno evaluado como % de la captura óptima
 
 #### Cómo usar:
-1. Los análisis se ejecutan automáticamente
-2. Observar gráficos de tiempo de ejecución
-3. Analizar precisión por método
-4. Leer recomendaciones de uso
+1. Entrenar los modelos (la tabla se calcula automáticamente)
+2. Subir y bajar el viento: castiga más a los barcos pequeños y cambia la combinación óptima
+3. Comparar el % del óptimo de cada origen de coeficientes
 
 ### 5. **Pestaña Análisis 📈**
 
@@ -90,7 +90,7 @@ La aplicación se abrirá automáticamente en: `http://localhost:8501`
 - Estadísticas descriptivas completas
 - Matriz de correlación interactiva
 - Distribuciones de variables
-- Análisis de sensibilidad
+- Capturas según las condiciones (análisis exploratorio, no es sensibilidad de la PL)
 - Insights automáticos
 
 #### Cómo usar:
@@ -107,14 +107,14 @@ La aplicación se abrirá automáticamente en: `http://localhost:8501`
 2. **Entrenar modelos ML**
 3. **Explorar Simplex** con diferentes parámetros
 4. **Comparar con ML** usando los mismos parámetros
-5. **Analizar diferencias** en la pestaña Comparación
+5. **Ver cómo cambia la decisión** en la pestaña Decidir vs. predecir
 6. **Explorar datos** en la pestaña Análisis
 
 ### Para Educadores:
 1. **Demostrar Simplex** como método clásico
-2. **Mostrar limitaciones** de programación lineal
-3. **Introducir ML** como alternativa moderna
-4. **Comparar métodos** lado a lado
+2. **Mostrar sus límites**: los coeficientes (rendimientos) se suponen conocidos
+3. **Introducir ML** para estimar esos coeficientes, no como sustituto de la PL
+4. **Evaluar la decisión** resultante frente al óptimo
 5. **Discutir casos de uso** apropiados
 
 ## 🔧 Parámetros Importantes
@@ -130,6 +130,11 @@ La aplicación se abrirá automáticamente en: `http://localhost:8501`
 - **Salinidad**: 30-40 ppt
 - **Olas**: 0.5-4.0 m
 
+### Datos sintéticos
+Los datos **no son reales**: se generan con `nucleo_io.py`. La captura de cada barco es su rendimiento
+nominal (50, 120 o 200 kg) multiplicado por factores de temperatura, fase lunar, mes y viento (el viento
+penaliza más a los barcos pequeños), más un 10 % de ruido. Salinidad y olas no influyen.
+
 ### Variables de Decisión:
 - **Barcos Pequeños**: 0-20 (costo: $1000, capturas: 50kg)
 - **Barcos Medianos**: 0-15 (costo: $2500, capturas: 120kg)
@@ -138,12 +143,12 @@ La aplicación se abrirá automáticamente en: `http://localhost:8501`
 ## 📊 Interpretación de Resultados
 
 ### Métricas de ML:
-- **R² Score**: 0-1 (más alto = mejor predicción)
+- **R² Score**: ≤ 1 (más alto = mejor predicción; 0 = igual que predecir la media; negativo = peor que la media)
 - **MSE**: Error cuadrático medio (más bajo = mejor)
 - **MAE**: Error absoluto medio (más bajo = mejor)
 
-### Comparación de Métodos:
-- **Simplex**: Rápido, óptimo, pero limitado a problemas lineales
+### Qué hace cada método:
+- **Simplex (PL)**: decide el plan óptimo si el modelo es lineal y los coeficientes son conocidos; explica qué recurso limita
 - **Random Forest**: Balanceado, robusto, interpretable
 - **Gradient Boosting**: Máxima precisión, pero más lento
 - **SVM**: Bueno para alta dimensionalidad
@@ -171,7 +176,7 @@ La aplicación se abrirá automáticamente en: `http://localhost:8501`
 ### Conceptos Clave:
 1. **Programación Lineal**: Optimización con restricciones lineales
 2. **Machine Learning**: Predicción basada en patrones históricos
-3. **Trade-offs**: Velocidad vs Precisión vs Flexibilidad
+3. **Decidir vs. predecir**: preguntas distintas que se combinan (el ML estima, la PL decide)
 4. **Validación**: Importancia de métricas de evaluación
 5. **Aplicación Práctica**: Casos de uso reales en optimización
 

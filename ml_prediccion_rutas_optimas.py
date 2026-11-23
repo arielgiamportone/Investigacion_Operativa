@@ -5,8 +5,9 @@ Modelos de Machine Learning para Predicción de Rutas Óptimas
 ============================================================
 
 Este script implementa modelos avanzados de Machine Learning para
-predicción y optimización de rutas pesqueras, demostrando cómo la IA
-moderna supera las limitaciones de la programación lineal tradicional.
+predicción de rutas pesqueras. El ML estima cantidades inciertas (capturas,
+beneficio, eficiencia); no sustituye a la programación lineal, que decide con
+esas estimaciones. ⚠️ Los datos son SINTÉTICOS: se generan dentro del script.
 
 Autor: Curso CONIPE 2025 - Alfabetización en Ciencia de Datos Pesquera
 Fecha: 2025
@@ -27,7 +28,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 import warnings
+from pathlib import Path
 warnings.filterwarnings('ignore')
+
+DIRECTORIO = Path(__file__).resolve().parent
 
 # Configuración de estilo
 plt.style.use('seaborn-v0_8')
@@ -203,7 +207,7 @@ class PredictorRutasML:
         axes[1,2].set_ylabel('Eficiencia (kg/hora)')
         
         plt.tight_layout()
-        plt.savefig('C:\\Users\\Ariel Giamporte\\Desktop\\Conipe2025\\curso_alfabetizacion_CONIPE25-main\\extras\\Investigacion_Operativa\\analisis_exploratorio_rutas.png', 
+        plt.savefig(DIRECTORIO / 'analisis_exploratorio_rutas.png', 
                    dpi=300, bbox_inches='tight')
         plt.show()
         
@@ -525,7 +529,7 @@ class PredictorRutasML:
         )
         
         # Guardar como HTML interactivo
-        fig.write_html('C:\\Users\\Ariel Giamporte\\Desktop\\Conipe2025\\curso_alfabetizacion_CONIPE25-main\\extras\\Investigacion_Operativa\\visualizaciones_ml_rutas.html')
+        fig.write_html(DIRECTORIO / 'visualizaciones_ml_rutas.html')
         
         print("✅ Visualizaciones interactivas guardadas en 'visualizaciones_ml_rutas.html'")
         
@@ -537,8 +541,8 @@ def main():
     """
     print("🌊 PREDICCIÓN DE RUTAS ÓPTIMAS CON MACHINE LEARNING 🌊")
     print("=" * 65)
-    print("Demostrando el poder de la IA para superar las limitaciones")
-    print("de la programación lineal tradicional en optimización pesquera")
+    print("El ML estima capturas y beneficios de rutas (datos sintéticos).")
+    print("Predice; no sustituye a la optimización, que decide con esas estimaciones.")
     print("=" * 65)
     
     # Crear instancia del predictor
@@ -564,16 +568,16 @@ def main():
     
     print("\n🎉 ANÁLISIS DE ML COMPLETADO")
     print("=" * 30)
-    print("Los modelos de Machine Learning han demostrado capacidades")
-    print("superiores para manejar la complejidad y no-linealidad")
-    print("inherente en la optimización de rutas pesqueras.")
+    print("Los R² anteriores miden lo bien que los modelos recuperan la fórmula")
+    print("sintética con la que se generaron los datos; no son evidencia sobre")
+    print("rutas reales. Elegir rutas con estas predicciones es una decisión que")
+    print("debe evaluarse por su resultado, no por el R².")
     
     print("\n🚀 VENTAJAS DEL ENFOQUE ML:")
     print("=" * 30)
     print("• Manejo de relaciones no-lineales complejas")
     print("• Adaptación a patrones estacionales")
     print("• Incorporación de múltiples variables ambientales")
-    print("• Predicción probabilística con intervalos de confianza")
     print("• Aprendizaje continuo con nuevos datos")
     
     return predictor

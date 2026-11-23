@@ -1,855 +1,651 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Análisis Comparativo: Métodos Clásicos vs Modernos en Investigación Operativa
-Evaluación Integral del Simplex, Machine Learning y Enfoques Híbridos
+Análisis comparativo: decidir (Simplex) y predecir (Machine Learning)
+=====================================================================
 
 Curso: CONIPE 2025 - Alfabetización en Ciencia de Datos
-Autor: Sistema de IA Educativa
-Fecha: 2025
 
-Este script genera un análisis comparativo exhaustivo que incluye:
-- Benchmarks de rendimiento entre métodos
-- Análisis de fortalezas y debilidades
-- Casos de uso óptimos para cada enfoque
-- Visualizaciones comparativas avanzadas
-- Recomendaciones estratégicas
+El Simplex y el Machine Learning NO compiten en la misma carrera:
+
+1. **Decidir (programación lineal / Simplex).** Con unos rendimientos y unos
+   recursos dados, ¿cuántos barcos de cada tipo conviene enviar? Se evalúa con
+   la solución óptima, los recursos que limitan, los precios sombra y el
+   análisis de sensibilidad. No tiene sentido medirlo con R² o MSE.
+2. **Predecir (Machine Learning).** A partir de las condiciones, ¿cuánto se va
+   a capturar? Se evalúa con R², MSE y validación cruzada, frente a líneas
+   base honestas (la media y una regresión lineal).
+3. **Predecir y luego optimizar (híbrido).** El ML estima el rendimiento de
+   cada tipo de barco según el clima y la PL decide con esas estimaciones.
+   Se evalúa por la *calidad de la decisión*: captura obtenida frente a la
+   que se habría obtenido decidiendo con los rendimientos verdaderos.
+
+⚠️ Todos los datos son SINTÉTICOS (ver `nucleo_io.py`): se generan con una
+fórmula conocida más ruido. Un buen R² solo demuestra que el modelo recupera
+esa fórmula; no dice nada sobre pesquerías reales.
+
+Salidas:
+- reporte_ejecutivo_analisis_io.html   (informe para leer)
+- analisis_comparativo_io_completo.html (gráficos interactivos)
+- resultados_analisis_io.json           (todas las cifras del informe)
 """
+
+import json
+import warnings
+from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.optimize import linprog
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.svm import SVR
-from sklearn.neural_network import MLPRegressor
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-from sklearn.preprocessing import StandardScaler
 import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
 import plotly.offline as pyo
-import warnings
-import time
-from datetime import datetime
-import json
+from plotly.subplots import make_subplots
+from sklearn.dummy import DummyRegressor
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.exceptions import ConvergenceWarning
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.neural_network import MLPRegressor
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVR
 
-warnings.filterwarnings('ignore')
+import nucleo_io as nio
+from nucleo_io import fmt
 
-# Configuración de estilo
-plt.style.use('seaborn-v0_8')
-sns.set_palette("husl")
-plt.rcParams['figure.figsize'] = (12, 8)
-plt.rcParams['font.size'] = 12
-plt.rcParams['axes.grid'] = True
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
+DIRECTORIO = Path(__file__).resolve().parent
+
+NOMBRE_MEDIA = "Media (línea base)"
+NOMBRE_LINEAL = "Regresión lineal"
+
+
+def modelos_prediccion(semilla=42):
+    """Modelos a comparar. Los que necesitan escalado llevan el escalador dentro
+    de un pipeline, para que la validación cruzada no "vea" los datos de test."""
+    return {
+        NOMBRE_MEDIA: DummyRegressor(strategy="mean"),
+        NOMBRE_LINEAL: make_pipeline(StandardScaler(), LinearRegression()),
+        "Random Forest": RandomForestRegressor(n_estimators=100, random_state=semilla),
+        "Gradient Boosting": GradientBoostingRegressor(n_estimators=100, random_state=semilla),
+        "SVM (RBF)": make_pipeline(StandardScaler(), SVR(kernel="rbf", C=100, gamma="scale")),
+        "Red neuronal (MLP)": make_pipeline(
+            StandardScaler(),
+            MLPRegressor(hidden_layer_sizes=(100, 50), max_iter=500, random_state=semilla)),
+    }
+
 
 class AnalizadorComparativoIO:
-    def __init__(self, semilla=42):
+    def __init__(self, semilla=42, n_escenarios=1000, n_historico_por_tipo=1000,
+                 n_escenarios_decision=300, verbose=True):
         self.semilla = semilla
-        np.random.seed(semilla)
+        self.n_escenarios = n_escenarios
+        self.n_historico_por_tipo = n_historico_por_tipo
+        self.n_escenarios_decision = n_escenarios_decision
+        self.verbose = verbose
         self.resultados = {}
-        self.metricas_comparativas = {}
-        self.datos_sinteticos = None
-        
-        print("🔬 ANALIZADOR COMPARATIVO DE INVESTIGACIÓN OPERATIVA")
-        print("=" * 60)
-        print("Evaluando: Simplex vs Machine Learning vs Híbrido")
-        print("=" * 60)
-    
-    def generar_datos_benchmark(self, n_escenarios=1000):
-        """Genera datos sintéticos para benchmarking"""
-        print("📊 Generando datos de benchmark...")
-        
-        # Parámetros de la flota pesquera
-        np.random.seed(self.semilla)
-        
-        datos = {
-            # Variables de decisión
-            'barcos_pequenos': np.random.randint(0, 20, n_escenarios),
-            'barcos_medianos': np.random.randint(0, 15, n_escenarios),
-            'barcos_grandes': np.random.randint(0, 10, n_escenarios),
-            
-            # Recursos disponibles
-            'combustible_disponible': np.random.uniform(1000, 5000, n_escenarios),
-            'tripulacion_disponible': np.random.randint(50, 300, n_escenarios),
-            'presupuesto': np.random.uniform(50000, 200000, n_escenarios),
-            
-            # Condiciones ambientales
-            'temperatura_agua': np.random.uniform(15, 25, n_escenarios),
-            'salinidad': np.random.uniform(30, 40, n_escenarios),
-            'velocidad_viento': np.random.uniform(0, 30, n_escenarios),
-            'altura_olas': np.random.uniform(0.5, 4.0, n_escenarios),
-            
-            # Factores de mercado
-            'precio_pescado': np.random.uniform(2, 8, n_escenarios),
-            'demanda_mercado': np.random.uniform(0.5, 1.5, n_escenarios),
-            'competencia_zona': np.random.uniform(0.1, 1.0, n_escenarios),
-            
-            # Factores temporales
-            'mes': np.random.randint(1, 13, n_escenarios),
-            'fase_lunar': np.random.uniform(0, 1, n_escenarios),
-        }
-        
-        # Calcular variables objetivo usando modelos complejos
-        datos['capturas_totales'] = self._calcular_capturas_complejas(datos)
-        datos['beneficio_neto'] = self._calcular_beneficio_complejo(datos)
-        datos['eficiencia_operativa'] = self._calcular_eficiencia(datos)
-        datos['sostenibilidad'] = self._calcular_sostenibilidad(datos)
-        
-        self.datos_sinteticos = pd.DataFrame(datos)
-        
-        print(f"✅ Generados {n_escenarios} escenarios de benchmark")
-        print(f"📈 Variables: {len(datos)} características")
-        
-        return self.datos_sinteticos
-    
-    def _calcular_capturas_complejas(self, datos):
-        """Modelo complejo para calcular capturas"""
-        base_pequenos = datos['barcos_pequenos'] * 50
-        base_medianos = datos['barcos_medianos'] * 120
-        base_grandes = datos['barcos_grandes'] * 200
-        
-        # Factores ambientales
-        factor_temp = 1 + 0.1 * np.sin((datos['temperatura_agua'] - 20) * np.pi / 10)
-        factor_viento = np.maximum(0.3, 1 - datos['velocidad_viento'] / 40)
-        factor_lunar = 1 + 0.2 * np.sin(datos['fase_lunar'] * 2 * np.pi)
-        
-        # Factores estacionales
-        factor_estacional = 1 + 0.3 * np.sin((datos['mes'] - 6) * np.pi / 6)
-        
-        # Interacciones no lineales
-        sinergia_flota = 1 + 0.1 * np.log1p(datos['barcos_pequenos'] + datos['barcos_medianos'] + datos['barcos_grandes'])
-        
-        capturas = (base_pequenos + base_medianos + base_grandes) * \
-                  factor_temp * factor_viento * factor_lunar * factor_estacional * sinergia_flota
-        
-        # Añadir ruido realista
-        ruido = np.random.normal(0, 0.1, len(capturas))
-        return np.maximum(0, capturas * (1 + ruido))
-    
-    def _calcular_beneficio_complejo(self, datos):
-        """Modelo complejo para calcular beneficio"""
-        # Costos operativos
-        costo_pequenos = datos['barcos_pequenos'] * 1000
-        costo_medianos = datos['barcos_medianos'] * 2500
-        costo_grandes = datos['barcos_grandes'] * 5000
-        
-        # Costos variables
-        costo_combustible = (datos['barcos_pequenos'] * 20 + 
-                           datos['barcos_medianos'] * 50 + 
-                           datos['barcos_grandes'] * 100) * \
-                          (1 + datos['velocidad_viento'] / 30)
-        
-        # Ingresos
-        capturas = self._calcular_capturas_complejas(datos)
-        ingresos = capturas * datos['precio_pescado'] * datos['demanda_mercado']
-        
-        # Penalizaciones por competencia
-        factor_competencia = 1 - 0.3 * datos['competencia_zona']
-        
-        beneficio = (ingresos * factor_competencia) - \
-                   (costo_pequenos + costo_medianos + costo_grandes + costo_combustible)
-        
-        return beneficio
-    
-    def _calcular_eficiencia(self, datos):
-        """Calcula eficiencia operativa"""
-        total_barcos = datos['barcos_pequenos'] + datos['barcos_medianos'] + datos['barcos_grandes']
-        capturas = self._calcular_capturas_complejas(datos)
-        
-        eficiencia = np.where(total_barcos > 0, capturas / total_barcos, 0)
-        return eficiencia / np.maximum(1, datos['velocidad_viento'] / 10)
-    
-    def _calcular_sostenibilidad(self, datos):
-        """Calcula índice de sostenibilidad"""
-        # Penalización por sobrepesca
-        total_barcos = datos['barcos_pequenos'] + datos['barcos_medianos'] + datos['barcos_grandes']
-        factor_sobrepesca = np.maximum(0.1, 1 - total_barcos / 50)
-        
-        # Bonus por condiciones favorables
-        factor_ambiental = (datos['temperatura_agua'] / 25 + 
-                          (40 - datos['salinidad']) / 10) / 2
-        
-        return factor_sobrepesca * factor_ambiental
-    
-    def benchmark_simplex_clasico(self):
-        """Evalúa el método Simplex clásico"""
-        print("🏛️ Evaluando Método Simplex Clásico...")
-        
-        resultados_simplex = []
-        tiempos_ejecucion = []
-        
-        # Tomar muestra para evaluación (Simplex es determinístico)
-        muestra = self.datos_sinteticos.sample(100, random_state=self.semilla)
-        
-        for idx, fila in muestra.iterrows():
-            inicio = time.time()
-            
-            # Definir problema de optimización lineal
-            # Maximizar: 50*x1 + 120*x2 + 200*x3 (capturas esperadas)
-            c = [-50, -120, -200]  # Negativo para maximización
-            
-            # Restricciones
-            A_ub = [
-                [20, 50, 100],    # Combustible
-                [2, 5, 8],        # Tripulación
-                [1000, 2500, 5000] # Presupuesto
-            ]
-            
-            b_ub = [
-                fila['combustible_disponible'],
-                fila['tripulacion_disponible'],
-                fila['presupuesto']
-            ]
-            
-            # Límites de variables
-            bounds = [(0, 20), (0, 15), (0, 10)]
-            
-            try:
-                resultado = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
-                
-                if resultado.success:
-                    x1, x2, x3 = resultado.x
-                    capturas_predichas = 50*x1 + 120*x2 + 200*x3
-                    beneficio_predicho = capturas_predichas * fila['precio_pescado'] - \
-                                       (1000*x1 + 2500*x2 + 5000*x3)
-                else:
-                    capturas_predichas = 0
-                    beneficio_predicho = 0
-                    
-            except:
-                capturas_predichas = 0
-                beneficio_predicho = 0
-            
-            tiempo_fin = time.time()
-            tiempos_ejecucion.append(tiempo_fin - inicio)
-            
-            resultados_simplex.append({
-                'capturas_predichas': capturas_predichas,
-                'beneficio_predicho': beneficio_predicho,
-                'capturas_reales': fila['capturas_totales'],
-                'beneficio_real': fila['beneficio_neto']
+
+    def _log(self, *args):
+        if self.verbose:
+            print(*args)
+
+    # ------------------------------------------------------------------
+    # 1. DECIDIR
+    # ------------------------------------------------------------------
+    def analizar_decision(self):
+        """PL del modelo base: solución, recursos limitantes, precios sombra y sensibilidad."""
+        self._log("🏛️ 1. DECIDIR: programación lineal (HiGHS)")
+        sol = nio.resolver_lp(nio.RENDIMIENTO_NOMINAL, nio.RECURSOS_BASE)
+        if not sol["exito"]:
+            raise RuntimeError(f"La PL base no tiene solución: {sol['mensaje']}")
+
+        recursos = []
+        for i, nombre in enumerate(nio.RECURSOS):
+            inf, sup, ps = nio.rango_precio_sombra(i)
+            recursos.append({
+                "recurso": nombre,
+                "unidad": nio.UNIDADES_RECURSOS[i],
+                "unidad_singular": nio.UNIDAD_SINGULAR[i],
+                "disponible": float(nio.RECURSOS_BASE[i]),
+                "usado": float(sol["uso"][i]),
+                "holgura": float(sol["holgura"][i]),
+                "limita": bool(np.isclose(sol["holgura"][i], 0, atol=1e-7)),
+                "precio_sombra": float(ps),
+                "rango_validez": [float(inf), None if np.isinf(sup) else float(sup)],
             })
-        
-        df_resultados = pd.DataFrame(resultados_simplex)
-        
-        # Calcular métricas
-        mse_capturas = mean_squared_error(df_resultados['capturas_reales'], 
-                                        df_resultados['capturas_predichas'])
-        mae_capturas = mean_absolute_error(df_resultados['capturas_reales'], 
-                                         df_resultados['capturas_predichas'])
-        r2_capturas = r2_score(df_resultados['capturas_reales'], 
-                              df_resultados['capturas_predichas'])
-        
-        self.resultados['simplex'] = {
-            'mse_capturas': mse_capturas,
-            'mae_capturas': mae_capturas,
-            'r2_capturas': max(0, r2_capturas),  # R² puede ser negativo
-            'tiempo_promedio': np.mean(tiempos_ejecucion),
-            'tiempo_total': np.sum(tiempos_ejecucion),
-            'predicciones': df_resultados
+
+        # Sensibilidad: objetivo al variar cada recurso entre 50 % y 150 % del base
+        factores = np.linspace(0.5, 1.5, 41)
+        sensibilidad = {}
+        for i, nombre in enumerate(nio.RECURSOS):
+            df = nio.sensibilidad_recurso(i, nio.RECURSOS_BASE[i] * factores)
+            sensibilidad[nombre] = {"factor": factores.tolist(),
+                                    "objetivo": df["objetivo"].tolist()}
+
+        self.resultados["decision"] = {
+            "coeficientes": nio.RENDIMIENTO_NOMINAL.tolist(),
+            "solucion": dict(zip(nio.TIPOS_BARCO, map(float, sol["x"]))),
+            "objetivo_kg": sol["objetivo"],
+            "valor_barco_extra": dict(zip(nio.TIPOS_BARCO, map(float, sol["valor_barco_extra"]))),
+            "recursos": recursos,
+            "sensibilidad": sensibilidad,
         }
-        
-        print(f"   📊 MSE Capturas: {mse_capturas:.2f}")
-        print(f"   📊 R² Capturas: {max(0, r2_capturas):.3f}")
-        print(f"   ⏱️ Tiempo promedio: {np.mean(tiempos_ejecucion)*1000:.2f} ms")
-        
-        return self.resultados['simplex']
-    
-    def benchmark_machine_learning(self):
-        """Evalúa múltiples modelos de Machine Learning"""
-        print("🧠 Evaluando Modelos de Machine Learning...")
-        
-        # Preparar datos
-        caracteristicas = [
-            'barcos_pequenos', 'barcos_medianos', 'barcos_grandes',
-            'combustible_disponible', 'tripulacion_disponible', 'presupuesto',
-            'temperatura_agua', 'salinidad', 'velocidad_viento', 'altura_olas',
-            'precio_pescado', 'demanda_mercado', 'competencia_zona',
-            'mes', 'fase_lunar'
-        ]
-        
-        X = self.datos_sinteticos[caracteristicas]
-        y_capturas = self.datos_sinteticos['capturas_totales']
-        y_beneficio = self.datos_sinteticos['beneficio_neto']
-        
-        # Dividir datos
-        X_train, X_test, y_cap_train, y_cap_test, y_ben_train, y_ben_test = \
-            train_test_split(X, y_capturas, y_beneficio, test_size=0.3, random_state=self.semilla)
-        
-        # Escalar características
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        # Modelos a evaluar
-        modelos = {
-            'Random Forest': RandomForestRegressor(n_estimators=100, random_state=self.semilla),
-            'Gradient Boosting': GradientBoostingRegressor(n_estimators=100, random_state=self.semilla),
-            'SVM': SVR(kernel='rbf', C=100, gamma='scale'),
-            'Neural Network': MLPRegressor(hidden_layer_sizes=(100, 50), max_iter=500, random_state=self.semilla)
+        self._log(f"   Solución: {sol['x']}  ->  {sol['objetivo']:.1f} kg")
+        for r in recursos:
+            self._log(f"   {r['recurso']:<12} holgura={r['holgura']:>10.2f}  "
+                      f"precio sombra={r['precio_sombra']:.3f} kg/{r['unidad']}")
+        return self.resultados["decision"]
+
+    # ------------------------------------------------------------------
+    # 2. PREDECIR
+    # ------------------------------------------------------------------
+    def evaluar_prediccion(self):
+        """Modelos de ML frente a la media y la regresión lineal. R² sin recortar."""
+        self._log("🧠 2. PREDECIR: capturas a partir de las condiciones")
+        datos = nio.generar_datos_flota(self.n_escenarios, self.semilla)
+        X = datos[nio.VARIABLES_PREDICCION]
+        y = datos["capturas_totales"]
+        X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3,
+                                                  random_state=self.semilla)
+
+        filas, predicciones = [], {}
+        for nombre, modelo in modelos_prediccion(self.semilla).items():
+            cv = cross_val_score(modelo, X_tr, y_tr, cv=5, scoring="r2")
+            modelo.fit(X_tr, y_tr)
+            y_pred = modelo.predict(X_te)
+            m = nio.metricas_regresion(y_te, y_pred)
+            filas.append({"modelo": nombre, "r2_test": m["r2"], "mse_test": m["mse"],
+                          "mae_test": m["mae"], "cv_r2_media": float(cv.mean()),
+                          "cv_r2_desv": float(cv.std())})
+            predicciones[nombre] = y_pred
+            self._log(f"   {nombre:<22} R²={m['r2']:.3f}  CV={cv.mean():.3f}±{cv.std():.3f}")
+
+        # Techo: la fórmula verdadera sin ruido. No es un modelo: es lo máximo
+        # que puede explicar cualquier modelo, porque el resto es ruido.
+        techo = nio.metricas_regresion(y_te, datos.loc[y_te.index, "capturas_sin_ruido"])
+        self._log(f"   Techo (fórmula verdadera) R²={techo['r2']:.3f}")
+
+        df = pd.DataFrame(filas)
+        ml = df[~df["modelo"].isin([NOMBRE_MEDIA, NOMBRE_LINEAL])]
+        mejor = ml.loc[ml["r2_test"].idxmax()]
+        self.resultados["prediccion"] = {
+            "tabla": filas,
+            "techo": techo,
+            "mejor_modelo": mejor["modelo"],
+            "n_train": int(len(y_tr)), "n_test": int(len(y_te)),
         }
-        
-        resultados_ml = {}
-        
-        for nombre, modelo in modelos.items():
-            print(f"   🔬 Evaluando {nombre}...")
-            inicio = time.time()
-            
-            # Entrenar modelo
-            if nombre == 'SVM' or nombre == 'Neural Network':
-                modelo.fit(X_train_scaled, y_cap_train)
-                y_pred = modelo.predict(X_test_scaled)
-            else:
-                modelo.fit(X_train, y_cap_train)
-                y_pred = modelo.predict(X_test)
-            
-            tiempo_entrenamiento = time.time() - inicio
-            
-            # Evaluar predicciones
-            inicio_pred = time.time()
-            if nombre == 'SVM' or nombre == 'Neural Network':
-                y_pred_test = modelo.predict(X_test_scaled)
-            else:
-                y_pred_test = modelo.predict(X_test)
-            tiempo_prediccion = time.time() - inicio_pred
-            
-            # Calcular métricas
-            mse = mean_squared_error(y_cap_test, y_pred_test)
-            mae = mean_absolute_error(y_cap_test, y_pred_test)
-            r2 = r2_score(y_cap_test, y_pred_test)
-            
-            # Cross-validation
-            if nombre == 'SVM' or nombre == 'Neural Network':
-                cv_scores = cross_val_score(modelo, X_train_scaled, y_cap_train, cv=5, scoring='r2')
-            else:
-                cv_scores = cross_val_score(modelo, X_train, y_cap_train, cv=5, scoring='r2')
-            
-            resultados_ml[nombre] = {
-                'mse_capturas': mse,
-                'mae_capturas': mae,
-                'r2_capturas': r2,
-                'cv_r2_mean': cv_scores.mean(),
-                'cv_r2_std': cv_scores.std(),
-                'tiempo_entrenamiento': tiempo_entrenamiento,
-                'tiempo_prediccion': tiempo_prediccion,
-                'predicciones_reales': y_cap_test.values,
-                'predicciones_modelo': y_pred_test
-            }
-            
-            print(f"      📊 R²: {r2:.3f} (±{cv_scores.std():.3f})")
-            print(f"      ⏱️ Entrenamiento: {tiempo_entrenamiento:.3f}s")
-        
-        self.resultados['machine_learning'] = resultados_ml
-        return resultados_ml
-    
-    def benchmark_enfoque_hibrido(self):
-        """Evalúa enfoque híbrido Simplex + ML"""
-        print("🚀 Evaluando Enfoque Híbrido...")
-        
-        # Usar el mejor modelo ML para generar escenarios
-        mejor_modelo_ml = 'Random Forest'  # Basado en evaluaciones típicas
-        
-        # Preparar datos
-        caracteristicas = [
-            'combustible_disponible', 'tripulacion_disponible', 'presupuesto',
-            'temperatura_agua', 'salinidad', 'velocidad_viento', 'altura_olas',
-            'precio_pescado', 'demanda_mercado', 'competencia_zona',
-            'mes', 'fase_lunar'
-        ]
-        
-        X = self.datos_sinteticos[caracteristicas]
-        y = self.datos_sinteticos['capturas_totales']
-        
-        # Entrenar modelo ML para predicción de condiciones
-        modelo_predictor = RandomForestRegressor(n_estimators=100, random_state=self.semilla)
-        modelo_predictor.fit(X, y)
-        
-        # Evaluar en muestra de test
-        muestra_test = self.datos_sinteticos.sample(100, random_state=self.semilla + 1)
-        
-        resultados_hibridos = []
-        tiempos_ejecucion = []
-        
-        for idx, fila in muestra_test.iterrows():
-            inicio = time.time()
-            
-            # Paso 1: ML predice factores de ajuste
-            condiciones = fila[caracteristicas].values.reshape(1, -1)
-            factor_ajuste = modelo_predictor.predict(condiciones)[0] / 1000  # Normalizar
-            
-            # Paso 2: Simplex optimiza con parámetros ajustados
-            c = [-50 * factor_ajuste, -120 * factor_ajuste, -200 * factor_ajuste]
-            
-            A_ub = [
-                [20, 50, 100],
-                [2, 5, 8],
-                [1000, 2500, 5000]
-            ]
-            
-            b_ub = [
-                fila['combustible_disponible'],
-                fila['tripulacion_disponible'],
-                fila['presupuesto']
-            ]
-            
-            bounds = [(0, 20), (0, 15), (0, 10)]
-            
-            try:
-                resultado = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
-                
-                if resultado.success:
-                    x1, x2, x3 = resultado.x
-                    capturas_predichas = (50*x1 + 120*x2 + 200*x3) * factor_ajuste
-                    beneficio_predicho = capturas_predichas * fila['precio_pescado'] - \
-                                       (1000*x1 + 2500*x2 + 5000*x3)
-                else:
-                    capturas_predichas = 0
-                    beneficio_predicho = 0
-                    
-            except:
-                capturas_predichas = 0
-                beneficio_predicho = 0
-            
-            tiempo_fin = time.time()
-            tiempos_ejecucion.append(tiempo_fin - inicio)
-            
-            resultados_hibridos.append({
-                'capturas_predichas': capturas_predichas,
-                'beneficio_predicho': beneficio_predicho,
-                'capturas_reales': fila['capturas_totales'],
-                'beneficio_real': fila['beneficio_neto'],
-                'factor_ajuste': factor_ajuste
-            })
-        
-        df_resultados = pd.DataFrame(resultados_hibridos)
-        
-        # Calcular métricas
-        mse_capturas = mean_squared_error(df_resultados['capturas_reales'], 
-                                        df_resultados['capturas_predichas'])
-        mae_capturas = mean_absolute_error(df_resultados['capturas_reales'], 
-                                         df_resultados['capturas_predichas'])
-        r2_capturas = r2_score(df_resultados['capturas_reales'], 
-                              df_resultados['capturas_predichas'])
-        
-        self.resultados['hibrido'] = {
-            'mse_capturas': mse_capturas,
-            'mae_capturas': mae_capturas,
-            'r2_capturas': max(0, r2_capturas),
-            'tiempo_promedio': np.mean(tiempos_ejecucion),
-            'tiempo_total': np.sum(tiempos_ejecucion),
-            'predicciones': df_resultados
-        }
-        
-        print(f"   📊 MSE Capturas: {mse_capturas:.2f}")
-        print(f"   📊 R² Capturas: {max(0, r2_capturas):.3f}")
-        print(f"   ⏱️ Tiempo promedio: {np.mean(tiempos_ejecucion)*1000:.2f} ms")
-        
-        return self.resultados['hibrido']
-    
-    def generar_analisis_comparativo(self):
-        """Genera análisis comparativo completo"""
-        print("\n📊 GENERANDO ANÁLISIS COMPARATIVO COMPLETO")
-        print("=" * 50)
-        
-        # Compilar métricas
-        metricas_resumen = {
-            'Método': ['Simplex Clásico', 'Random Forest', 'Gradient Boosting', 'SVM', 'Neural Network', 'Híbrido'],
-            'R² Capturas': [
-                self.resultados['simplex']['r2_capturas'],
-                self.resultados['machine_learning']['Random Forest']['r2_capturas'],
-                self.resultados['machine_learning']['Gradient Boosting']['r2_capturas'],
-                self.resultados['machine_learning']['SVM']['r2_capturas'],
-                self.resultados['machine_learning']['Neural Network']['r2_capturas'],
-                self.resultados['hibrido']['r2_capturas']
-            ],
-            'MSE Capturas': [
-                self.resultados['simplex']['mse_capturas'],
-                self.resultados['machine_learning']['Random Forest']['mse_capturas'],
-                self.resultados['machine_learning']['Gradient Boosting']['mse_capturas'],
-                self.resultados['machine_learning']['SVM']['mse_capturas'],
-                self.resultados['machine_learning']['Neural Network']['mse_capturas'],
-                self.resultados['hibrido']['mse_capturas']
-            ],
-            'Tiempo (ms)': [
-                self.resultados['simplex']['tiempo_promedio'] * 1000,
-                self.resultados['machine_learning']['Random Forest']['tiempo_prediccion'] * 1000,
-                self.resultados['machine_learning']['Gradient Boosting']['tiempo_prediccion'] * 1000,
-                self.resultados['machine_learning']['SVM']['tiempo_prediccion'] * 1000,
-                self.resultados['machine_learning']['Neural Network']['tiempo_prediccion'] * 1000,
-                self.resultados['hibrido']['tiempo_promedio'] * 1000
-            ]
-        }
-        
-        df_metricas = pd.DataFrame(metricas_resumen)
-        
-        # Análisis de fortalezas y debilidades
-        analisis_cualitativo = {
-            'Simplex Clásico': {
-                'fortalezas': ['Solución óptima garantizada', 'Rápido para problemas lineales', 'Interpretable', 'Determinístico'],
-                'debilidades': ['Solo problemas lineales', 'No maneja incertidumbre', 'Rígido ante cambios', 'No aprende de datos'],
-                'casos_uso': ['Problemas bien definidos', 'Recursos limitados claros', 'Objetivos lineales', 'Entornos estables']
-            },
-            'Machine Learning': {
-                'fortalezas': ['Maneja no-linealidad', 'Aprende patrones complejos', 'Adaptable', 'Predictivo'],
-                'debilidades': ['Requiere datos masivos', 'Caja negra', 'Sobreajuste posible', 'No garantiza optimalidad'],
-                'casos_uso': ['Datos históricos abundantes', 'Patrones complejos', 'Entornos dinámicos', 'Predicción necesaria']
-            },
-            'Enfoque Híbrido': {
-                'fortalezas': ['Combina precisión y adaptabilidad', 'Robusto', 'Aprovecha ambos enfoques', 'Escalable'],
-                'debilidades': ['Mayor complejidad', 'Requiere expertise dual', 'Tiempo de desarrollo', 'Mantenimiento complejo'],
-                'casos_uso': ['Problemas complejos críticos', 'Recursos para desarrollo', 'Necesidad de robustez', 'Entornos mixtos']
-            }
-        }
-        
-        self.metricas_comparativas = {
-            'resumen_cuantitativo': df_metricas,
-            'analisis_cualitativo': analisis_cualitativo
-        }
-        
-        return self.metricas_comparativas
-    
-    def crear_visualizaciones_comparativas(self):
-        """Crea visualizaciones comparativas avanzadas"""
-        print("🎨 Creando visualizaciones comparativas...")
-        
-        # Configurar subplots
-        fig = make_subplots(
-            rows=3, cols=2,
-            subplot_titles=[
-                'Comparación de R² por Método',
-                'Tiempo de Ejecución por Método',
-                'MSE vs R² Trade-off',
-                'Distribución de Errores',
-                'Análisis de Fortalezas',
-                'Recomendaciones por Escenario'
-            ],
-            specs=[
-                [{'type': 'bar'}, {'type': 'bar'}],
-                [{'type': 'scatter'}, {'type': 'box'}],
-                [{'type': 'domain'}, {'type': 'table'}]
-            ]
-        )
-        
-        df_metricas = self.metricas_comparativas['resumen_cuantitativo']
-        
-        # 1. Comparación R²
-        fig.add_trace(
-            go.Bar(
-                x=df_metricas['Método'],
-                y=df_metricas['R² Capturas'],
-                name='R² Capturas',
-                marker_color='lightblue',
-                text=[f'{val:.3f}' for val in df_metricas['R² Capturas']],
-                textposition='auto'
-            ),
-            row=1, col=1
-        )
-        
-        # 2. Tiempo de ejecución
-        fig.add_trace(
-            go.Bar(
-                x=df_metricas['Método'],
-                y=df_metricas['Tiempo (ms)'],
-                name='Tiempo (ms)',
-                marker_color='lightcoral',
-                text=[f'{val:.1f}ms' for val in df_metricas['Tiempo (ms)']],
-                textposition='auto'
-            ),
-            row=1, col=2
-        )
-        
-        # 3. Trade-off MSE vs R²
-        fig.add_trace(
-            go.Scatter(
-                x=df_metricas['MSE Capturas'],
-                y=df_metricas['R² Capturas'],
-                mode='markers+text',
-                text=df_metricas['Método'],
-                textposition='top center',
-                marker=dict(size=12, color='green'),
-                name='MSE vs R²'
-            ),
-            row=2, col=1
-        )
-        
-        # 4. Box plot de errores (simulado)
-        metodos_principales = ['Simplex', 'Random Forest', 'Híbrido']
-        errores_simulados = {
-            'Simplex': np.random.normal(df_metricas.iloc[0]['MSE Capturas'], 
-                                      df_metricas.iloc[0]['MSE Capturas']*0.1, 50),
-            'Random Forest': np.random.normal(df_metricas.iloc[1]['MSE Capturas'], 
-                                            df_metricas.iloc[1]['MSE Capturas']*0.1, 50),
-            'Híbrido': np.random.normal(df_metricas.iloc[5]['MSE Capturas'], 
-                                      df_metricas.iloc[5]['MSE Capturas']*0.1, 50)
-        }
-        
-        for i, (metodo, errores) in enumerate(errores_simulados.items()):
-            fig.add_trace(
-                go.Box(
-                    y=errores,
-                    name=metodo,
-                    boxpoints='outliers'
-                ),
-                row=2, col=2
-            )
-        
-        # 5. Gráfico de dona para fortalezas
-        fortalezas_count = {
-            'Precisión': 3,
-            'Adaptabilidad': 4,
-            'Velocidad': 2,
-            'Robustez': 3,
-            'Interpretabilidad': 2
-        }
-        
-        fig.add_trace(
-            go.Pie(
-                labels=list(fortalezas_count.keys()),
-                values=list(fortalezas_count.values()),
-                hole=0.4,
-                name='Fortalezas'
-            ),
-            row=3, col=1
-        )
-        
-        # 6. Tabla de recomendaciones
-        recomendaciones = [
-            ['Problema Lineal Simple', 'Simplex Clásico', 'Óptimo garantizado'],
-            ['Datos Abundantes', 'Random Forest', 'Mejor predicción'],
-            ['Entorno Crítico', 'Híbrido', 'Máxima robustez'],
-            ['Tiempo Real', 'Simplex/SVM', 'Velocidad requerida'],
-            ['Exploración', 'Gradient Boosting', 'Descubrimiento patrones']
-        ]
-        
-        fig.add_trace(
-            go.Table(
-                header=dict(values=['Escenario', 'Método Recomendado', 'Razón'],
-                           fill_color='lightblue'),
-                cells=dict(values=list(zip(*recomendaciones)),
-                          fill_color='white')
-            ),
-            row=3, col=2
-        )
-        
-        # Actualizar layout
-        fig.update_layout(
-            height=1200,
-            title_text="Análisis Comparativo Completo: Métodos de Investigación Operativa",
-            title_x=0.5,
-            showlegend=False
-        )
-        
-        # Guardar visualización
-        archivo_html = "analisis_comparativo_io_completo.html"
-        pyo.plot(fig, filename=archivo_html, auto_open=False)
-        
-        print(f"✅ Visualización guardada: {archivo_html}")
-        
-        return archivo_html
-    
-    def generar_reporte_ejecutivo(self):
-        """Genera reporte ejecutivo en formato HTML"""
-        print("📋 Generando reporte ejecutivo...")
-        
-        df_metricas = self.metricas_comparativas['resumen_cuantitativo']
-        
-        # Encontrar el mejor método por métrica
-        mejor_r2 = df_metricas.loc[df_metricas['R² Capturas'].idxmax(), 'Método']
-        mejor_mse = df_metricas.loc[df_metricas['MSE Capturas'].idxmin(), 'Método']
-        mejor_tiempo = df_metricas.loc[df_metricas['Tiempo (ms)'].idxmin(), 'Método']
-        
-        html_reporte = f"""
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Reporte Ejecutivo: Análisis Comparativo IO</title>
-            <style>
-                body {{ font-family: 'Arial', sans-serif; margin: 40px; background: #f5f5f5; }}
-                .container {{ max-width: 1000px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
-                h1 {{ color: #2c3e50; text-align: center; border-bottom: 3px solid #3498db; padding-bottom: 20px; }}
-                h2 {{ color: #34495e; margin-top: 30px; }}
-                .metric-card {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; margin: 10px 0; border-radius: 8px; }}
-                .metric-value {{ font-size: 2em; font-weight: bold; }}
-                .metric-label {{ font-size: 0.9em; opacity: 0.9; }}
-                .recommendation {{ background: #e8f5e8; border-left: 4px solid #27ae60; padding: 15px; margin: 15px 0; }}
-                .warning {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }}
-                table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-                th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
-                th {{ background-color: #3498db; color: white; }}
-                .best {{ background-color: #d4edda; font-weight: bold; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>📊 Reporte Ejecutivo: Análisis Comparativo de Métodos de IO</h1>
-                
-                <div class="metric-card">
-                    <div class="metric-label">Fecha de Análisis</div>
-                    <div class="metric-value">{datetime.now().strftime('%d/%m/%Y')}</div>
-                </div>
-                
-                <h2>🎯 Resumen Ejecutivo</h2>
-                <p>Se evaluaron 6 enfoques diferentes para optimización de flotas pesqueras, comparando métodos clásicos de Investigación Operativa con técnicas modernas de Machine Learning y enfoques híbridos.</p>
-                
-                <h2>🏆 Mejores Métodos por Categoría</h2>
-                <div class="recommendation">
-                    <strong>🎯 Mejor Precisión (R²):</strong> {mejor_r2} ({df_metricas.loc[df_metricas['R² Capturas'].idxmax(), 'R² Capturas']:.3f})
-                </div>
-                <div class="recommendation">
-                    <strong>⚡ Menor Error (MSE):</strong> {mejor_mse} ({df_metricas.loc[df_metricas['MSE Capturas'].idxmin(), 'MSE Capturas']:.2f})
-                </div>
-                <div class="recommendation">
-                    <strong>🚀 Mayor Velocidad:</strong> {mejor_tiempo} ({df_metricas.loc[df_metricas['Tiempo (ms)'].idxmin(), 'Tiempo (ms)']:.1f} ms)
-                </div>
-                
-                <h2>📈 Tabla Comparativa Completa</h2>
-                <table>
-                    <tr>
-                        <th>Método</th>
-                        <th>R² Capturas</th>
-                        <th>MSE Capturas</th>
-                        <th>Tiempo (ms)</th>
-                        <th>Clasificación</th>
-                    </tr>
-        """
-        
-        # Agregar filas de la tabla
-        for idx, fila in df_metricas.iterrows():
-            clase_css = 'best' if fila['Método'] in [mejor_r2, mejor_mse, mejor_tiempo] else ''
-            html_reporte += f"""
-                    <tr class="{clase_css}">
-                        <td>{fila['Método']}</td>
-                        <td>{fila['R² Capturas']:.3f}</td>
-                        <td>{fila['MSE Capturas']:.2f}</td>
-                        <td>{fila['Tiempo (ms)']:.1f}</td>
-                        <td>{'⭐ Destacado' if clase_css else 'Estándar'}</td>
-                    </tr>
-            """
-        
-        html_reporte += """
-                </table>
-                
-                <h2>💡 Recomendaciones Estratégicas</h2>
-                
-                <div class="recommendation">
-                    <h3>🏛️ Para Problemas Lineales Simples</h3>
-                    <p><strong>Usar Simplex Clásico</strong> cuando el problema esté bien definido, las restricciones sean lineales y se requiera la solución óptima garantizada.</p>
-                </div>
-                
-                <div class="recommendation">
-                    <h3>🧠 Para Entornos Complejos con Datos</h3>
-                    <p><strong>Usar Random Forest o Gradient Boosting</strong> cuando se disponga de datos históricos abundantes y se necesite capturar patrones no lineales.</p>
-                </div>
-                
-                <div class="recommendation">
-                    <h3>🚀 Para Aplicaciones Críticas</h3>
-                    <p><strong>Usar Enfoque Híbrido</strong> cuando se requiera máxima robustez y se pueda invertir en desarrollo más complejo.</p>
-                </div>
-                
-                <div class="warning">
-                    <h3>⚠️ Consideraciones Importantes</h3>
-                    <ul>
-                        <li>Los métodos ML requieren datos de calidad y cantidad suficiente</li>
-                        <li>El Simplex garantiza optimalidad solo en problemas lineales</li>
-                        <li>Los enfoques híbridos requieren expertise en ambas áreas</li>
-                        <li>La elección depende del contexto específico del problema</li>
-                    </ul>
-                </div>
-                
-                <h2>🔮 Conclusiones y Próximos Pasos</h2>
-                <p>El análisis demuestra que no existe un método universalmente superior. La elección óptima depende de:</p>
-                <ul>
-                    <li><strong>Complejidad del problema:</strong> Lineal vs No-lineal</li>
-                    <li><strong>Disponibilidad de datos:</strong> Históricos vs Limitados</li>
-                    <li><strong>Recursos computacionales:</strong> Tiempo vs Precisión</li>
-                    <li><strong>Criticidad de la aplicación:</strong> Exploratoria vs Producción</li>
-                </ul>
-                
-                <div class="metric-card">
-                    <div class="metric-label">Recomendación General</div>
-                    <div class="metric-value">Enfoque Híbrido para Máximo Impacto</div>
-                </div>
-                
-                <p style="text-align: center; margin-top: 40px; color: #7f8c8d;">
-                    <em>Generado por el Sistema de Análisis Comparativo IO - CONIPE 2025</em>
-                </p>
-            </div>
-        </body>
-        </html>
-        """
-        
-        # Guardar reporte
-        archivo_reporte = "reporte_ejecutivo_analisis_io.html"
-        with open(archivo_reporte, 'w', encoding='utf-8') as f:
-            f.write(html_reporte)
-        
-        print(f"✅ Reporte ejecutivo guardado: {archivo_reporte}")
-        
-        return archivo_reporte
-    
-    def ejecutar_analisis_completo(self):
-        """Ejecuta el análisis comparativo completo"""
-        print("🚀 INICIANDO ANÁLISIS COMPARATIVO COMPLETO")
-        print("=" * 60)
-        
-        # 1. Generar datos
-        self.generar_datos_benchmark(1000)
-        
-        # 2. Evaluar métodos
-        self.benchmark_simplex_clasico()
-        self.benchmark_machine_learning()
-        self.benchmark_enfoque_hibrido()
-        
-        # 3. Análisis comparativo
-        self.generar_analisis_comparativo()
-        
-        # 4. Visualizaciones
-        archivo_viz = self.crear_visualizaciones_comparativas()
-        
-        # 5. Reporte ejecutivo
-        archivo_reporte = self.generar_reporte_ejecutivo()
-        
-        # 6. Resumen final
-        print("\n🎉 ANÁLISIS COMPLETADO EXITOSAMENTE")
-        print("=" * 40)
-        print(f"📊 Visualizaciones: {archivo_viz}")
-        print(f"📋 Reporte Ejecutivo: {archivo_reporte}")
-        print(f"📈 Métodos Evaluados: 6")
-        print(f"🔬 Escenarios Analizados: 1000")
-        
-        return {
-            'visualizaciones': archivo_viz,
-            'reporte': archivo_reporte,
-            'metricas': self.metricas_comparativas,
-            'resultados_detallados': self.resultados
+        self._pred_test = (y_te.to_numpy(), predicciones)
+        return self.resultados["prediccion"]
+
+    # ------------------------------------------------------------------
+    # 3. PREDECIR Y LUEGO OPTIMIZAR
+    # ------------------------------------------------------------------
+    def evaluar_hibrido(self):
+        """ML estima el rendimiento por tipo de barco; la PL decide con esas
+        estimaciones. Se mide la calidad de la decisión, no el R²."""
+        self._log("🚀 3. PREDECIR Y LUEGO OPTIMIZAR")
+        hist = nio.generar_historico_salidas(self.n_historico_por_tipo, self.semilla + 1)
+        estimadores = {
+            NOMBRE_LINEAL: lambda: make_pipeline(StandardScaler(), LinearRegression()),
+            "Random Forest": lambda: RandomForestRegressor(n_estimators=100, random_state=self.semilla),
+            "Gradient Boosting": lambda: GradientBoostingRegressor(n_estimators=100, random_state=self.semilla),
         }
 
+        # Escenarios nuevos (clima + recursos) en los que hay que decidir
+        rng = np.random.default_rng(self.semilla + 2)
+        escenarios = nio.generar_condiciones(self.n_escenarios_decision, rng)
+        rend_real = nio.rendimiento_verdadero(escenarios["temperatura_agua"],
+                                              escenarios["velocidad_viento"],
+                                              escenarios["mes"], escenarios["fase_lunar"])
+        recursos = escenarios[["combustible_disponible", "tripulacion_disponible",
+                               "presupuesto"]].to_numpy(dtype=float)
+
+        # Rendimientos estimados por cada estrategia, matriz (n, 3)
+        estimaciones = {"Coeficientes nominales (sin ML)":
+                        np.tile(nio.RENDIMIENTO_NOMINAL, (len(escenarios), 1))}
+        r2_rendimiento = {}
+        for nombre, crear in estimadores.items():
+            est = np.zeros((len(escenarios), 3))
+            r2s = []
+            for t, tipo in enumerate(nio.TIPOS_BARCO):
+                h = hist[hist["tipo"] == tipo]
+                X_tr, X_te, y_tr, y_te = train_test_split(
+                    h[nio.VARIABLES_CLIMA], h["captura_por_barco"],
+                    test_size=0.3, random_state=self.semilla)
+                modelo = crear().fit(X_tr, y_tr)
+                r2s.append(nio.metricas_regresion(y_te, modelo.predict(X_te))["r2"])
+                est[:, t] = modelo.predict(escenarios[nio.VARIABLES_CLIMA])
+            estimaciones[f"{nombre} + PL"] = est
+            r2_rendimiento[f"{nombre} + PL"] = dict(zip(nio.TIPOS_BARCO, r2s))
+
+        # Óptimo con los rendimientos verdaderos (referencia, 100 %)
+        optimo = np.array([nio.resolver_lp(rend_real[i], recursos[i])["objetivo"]
+                           for i in range(len(escenarios))])
+
+        filas, ratios = [], {}
+        for nombre, est in estimaciones.items():
+            obtenido = np.array([rend_real[i] @ nio.resolver_lp(est[i], recursos[i])["x"]
+                                 for i in range(len(escenarios))])
+            ratio = 100 * obtenido / optimo
+            ratios[nombre] = ratio
+            filas.append({
+                "estrategia": nombre,
+                "pct_optimo_media": float(ratio.mean()),
+                "pct_optimo_mediana": float(np.median(ratio)),
+                "pct_optimo_peor": float(ratio.min()),
+                "pct_escenarios_optimos": float(100 * np.mean(ratio >= 99.9)),
+                "kg_perdidos_media": float((optimo - obtenido).mean()),
+                "r2_rendimiento": r2_rendimiento.get(nombre),
+            })
+            self._log(f"   {nombre:<34} {ratio.mean():6.2f} % del óptimo "
+                      f"(peor caso {ratio.min():.1f} %)")
+
+        self.resultados["hibrido"] = {
+            "tabla": filas,
+            "n_escenarios": int(len(escenarios)),
+            "n_historico": int(len(hist)),
+            "optimo_medio_kg": float(optimo.mean()),
+        }
+        self._ratios = ratios
+        return self.resultados["hibrido"]
+
+    # ------------------------------------------------------------------
+    # Conclusiones (se derivan de los resultados)
+    # ------------------------------------------------------------------
+    def conclusiones(self):
+        d, p, h = (self.resultados[k] for k in ("decision", "prediccion", "hibrido"))
+        textos = {}
+
+        limitantes = [r for r in d["recursos"] if r["limita"]]
+        no_limitan = [r for r in d["recursos"] if not r["limita"]]
+        frase = "; ".join(
+            f"<strong>{r['recurso']}</strong> (precio sombra {fmt(r['precio_sombra'], 2)} kg por "
+            f"{r['unidad_singular']}, válido aproximadamente "
+            + (f"entre {fmt(r['rango_validez'][0], 0)} y {fmt(r['rango_validez'][1], 0)})"
+               if r["rango_validez"][1] is not None
+               else f"desde {fmt(r['rango_validez'][0], 0)} sin límite superior)")
+            for r in limitantes) or "ningún recurso"
+        textos["decidir"] = (
+            f"Con los recursos del escenario base, el plan óptimo captura "
+            f"{fmt(d['objetivo_kg'], 1)} kg. El recurso que limita es {frase}. "
+            + ("Sobran " + " y ".join(f"{fmt(r['holgura'], 0)} {r['unidad']} de {r['recurso']}"
+                                      for r in no_limitan)
+               + ": conseguir más de esos recursos no aumentaría la captura (precio sombra 0). "
+               if no_limitan else "")
+        )
+
+        tabla = {f["modelo"]: f for f in p["tabla"]}
+        mejor = tabla[p["mejor_modelo"]]
+        lineal = tabla[NOMBRE_LINEAL]
+        media = tabla[NOMBRE_MEDIA]
+        dif = mejor["r2_test"] - lineal["r2_test"]
+        negativos = [f["modelo"] for f in p["tabla"]
+                     if f["r2_test"] < 0 and f["modelo"] != NOMBRE_MEDIA]
+        txt = (f"El mejor modelo de ML es <strong>{p['mejor_modelo']}</strong> "
+               f"(R² = {fmt(mejor['r2_test'], 3)} en test). La regresión lineal obtiene "
+               f"{fmt(lineal['r2_test'], 3)} y la media {fmt(media['r2_test'], 3)}. ")
+        if dif <= 0.01:
+            txt += ("La regresión lineal empata o gana: con estos datos, la complejidad "
+                    "adicional del ML no aporta. ")
+        else:
+            txt += (f"La regresión lineal no empata (queda {fmt(dif, 3)} por debajo): la captura "
+                    "es lineal en el número de barcos pero se multiplica por factores "
+                    "climáticos, y un modelo lineal en las variables originales no puede "
+                    "representar ese producto. ")
+        txt += (f"El techo alcanzable es R² = {fmt(p['techo']['r2'], 3)} (la fórmula "
+                "verdadera sin ruido): el ML no descubre nada nuevo, solo se acerca a la "
+                "fórmula con la que se generaron los datos. ")
+        if media["r2_test"] < 0:
+            txt += ("La media sale ligeramente negativa porque usa la media del entrenamiento, "
+                    "no la del test: es el R² que corresponde a «no saber nada». ")
+        if negativos:
+            txt += ("Hay R² negativos (" + ", ".join(negativos) + "): esos modelos predicen "
+                    "peor que la media y se muestran tal cual.")
+        textos["predecir"] = txt
+
+        th = {f["estrategia"]: f for f in h["tabla"]}
+        nominal = th["Coeficientes nominales (sin ML)"]
+        mejor_h = max((f for f in h["tabla"] if f is not nominal),
+                      key=lambda f: f["pct_optimo_media"])
+        lineal_h = th[f"{NOMBRE_LINEAL} + PL"]
+        mejora = mejor_h["pct_optimo_media"] - nominal["pct_optimo_media"]
+        txt = (f"Decidir con los rendimientos nominales (los de un día en calma) logra en "
+               f"promedio el {fmt(nominal['pct_optimo_media'], 1)} % de la captura óptima, "
+               f"con un peor caso del {fmt(nominal['pct_optimo_peor'], 1)} %. ")
+        if mejora > 0.5:
+            txt += (f"Estimar los rendimientos con ML y decidir con la PL eleva la media al "
+                    f"{fmt(mejor_h['pct_optimo_media'], 1)} % ({mejor_h['estrategia']}; peor caso "
+                    f"{fmt(mejor_h['pct_optimo_peor'], 1)} %). Con la regresión lineal se llega al "
+                    f"{fmt(lineal_h['pct_optimo_media'], 1)} %. ")
+        else:
+            txt += "Estimar los rendimientos con ML apenas cambia la calidad de la decisión. "
+        txt += ("La mejora existe porque, en este mundo sintético, el viento afecta de forma "
+                "distinta a cada tipo de barco y eso cambia cuál es la mejor combinación. Si "
+                "el clima escalara por igual todos los rendimientos, la decisión óptima no "
+                "cambiaría y la predicción no aportaría nada a la decisión.")
+        textos["hibrido"] = txt
+        textos["mejora_hibrido_pp"] = mejora
+        self.resultados["conclusiones"] = textos
+        return textos
+
+    # ------------------------------------------------------------------
+    # Visualizaciones
+    # ------------------------------------------------------------------
+    def crear_visualizaciones(self, archivo="analisis_comparativo_io_completo.html"):
+        self._log("🎨 Creando visualizaciones...")
+        d, p, h = (self.resultados[k] for k in ("decision", "prediccion", "hibrido"))
+        fig = make_subplots(
+            rows=3, cols=2, vertical_spacing=0.12, horizontal_spacing=0.12,
+            subplot_titles=[
+                "1. Decidir: plan óptimo (barcos por tipo)",
+                "1. Decidir: uso de cada recurso (% de lo disponible)",
+                "1. Decidir: captura óptima al variar cada recurso",
+                "2. Predecir: R² en test (con desviación de la validación cruzada)",
+                "2. Predecir: predicción vs. real (test)",
+                "3. Predecir y optimizar: % de la captura óptima por escenario",
+            ])
+
+        tipos = list(d["solucion"].keys())
+        fig.add_trace(go.Bar(x=tipos, y=list(d["solucion"].values()),
+                             text=[fmt(v, 1) for v in d["solucion"].values()],
+                             textposition="auto", marker_color="#4C78A8",
+                             name="Barcos", showlegend=False), row=1, col=1)
+
+        rec = d["recursos"]
+        fig.add_trace(go.Bar(
+            x=[f"{r['recurso']}<br>(precio sombra {fmt(r['precio_sombra'], 2)})" for r in rec],
+            y=[100 * r["usado"] / r["disponible"] for r in rec],
+            text=[f"{fmt(100 * r['usado'] / r['disponible'], 0)} %" for r in rec],
+            textposition="outside", textangle=0, showlegend=False,
+            marker_color=["#E45756" if r["limita"] else "#9DA5B4" for r in rec],
+            name="Uso"), row=1, col=2)
+
+        colores = {"combustible": "#4C78A8", "tripulación": "#E45756", "presupuesto": "#54A24B"}
+        for nombre, s in d["sensibilidad"].items():
+            fig.add_trace(go.Scatter(x=[100 * f for f in s["factor"]], y=s["objetivo"],
+                                     mode="lines", name=nombre,
+                                     line=dict(color=colores[nombre], width=2)),
+                          row=2, col=1)
+
+        tabla = p["tabla"]
+        fig.add_trace(go.Bar(
+            x=[f["modelo"] for f in tabla], y=[f["r2_test"] for f in tabla],
+            error_y=dict(type="data", array=[f["cv_r2_desv"] for f in tabla]),
+            text=[fmt(f["r2_test"], 3) for f in tabla], textposition="outside",
+            marker_color=["#9DA5B4" if f["modelo"] in (NOMBRE_MEDIA, NOMBRE_LINEAL)
+                          else "#4C78A8" for f in tabla],
+            name="R² test", showlegend=False), row=2, col=2)
+        fig.add_hline(y=p["techo"]["r2"], line_dash="dash", line_color="#54A24B",
+                      annotation_text="techo (fórmula verdadera)", row=2, col=2)
+
+        y_te, preds = self._pred_test
+        for nombre, color in ((p["mejor_modelo"], "#4C78A8"), (NOMBRE_LINEAL, "#F58518")):
+            fig.add_trace(go.Scatter(x=y_te, y=preds[nombre], mode="markers",
+                                     marker=dict(size=4, opacity=0.5, color=color),
+                                     name=nombre), row=3, col=1)
+        lim = [0, float(max(y_te.max(), max(v.max() for v in preds.values())))]
+        fig.add_trace(go.Scatter(x=lim, y=lim, mode="lines", name="predicción perfecta",
+                                 line=dict(color="black", dash="dash")), row=3, col=1)
+
+        for nombre, ratio in self._ratios.items():
+            fig.add_trace(go.Box(y=ratio, name=nombre.replace(" + PL", "<br>+ PL").replace("Coeficientes nominales (sin ML)", "Nominales<br>(sin ML)"),
+                                 boxpoints="outliers", showlegend=False), row=3, col=2)
+
+        fig.update_yaxes(title_text="barcos", row=1, col=1)
+        fig.update_yaxes(title_text="% usado", range=[0, 115], row=1, col=2)
+        fig.update_xaxes(title_text="% del valor base del recurso", row=2, col=1)
+        fig.update_yaxes(title_text="captura óptima (kg)", row=2, col=1)
+        fig.update_yaxes(title_text="R²", row=2, col=2)
+        fig.update_xaxes(title_text="captura real (kg)", row=3, col=1)
+        fig.update_yaxes(title_text="captura predicha (kg)", row=3, col=1)
+        fig.update_yaxes(title_text="% del óptimo", row=3, col=2)
+        fig.update_layout(
+            height=1400,
+            title_text=("Decidir y predecir: dos preguntas distintas "
+                        "<br><sup>Datos sintéticos generados con una fórmula conocida "
+                        "(ver nucleo_io.py)</sup>"),
+            title_x=0.5, showlegend=True, legend=dict(orientation="h", y=-0.05))
+
+        ruta = DIRECTORIO / archivo
+        pyo.plot(fig, filename=str(ruta), auto_open=False)
+        self._log(f"✅ Visualización guardada: {archivo}")
+        return str(ruta)
+
+    # ------------------------------------------------------------------
+    # Informe HTML
+    # ------------------------------------------------------------------
+    def generar_reporte_ejecutivo(self, archivo="reporte_ejecutivo_analisis_io.html"):
+        self._log("📋 Generando reporte ejecutivo...")
+        d, p, h = (self.resultados[k] for k in ("decision", "prediccion", "hibrido"))
+        c = self.resultados.get("conclusiones") or self.conclusiones()
+
+        filas_sol = "".join(
+            f"<tr><td>{t}</td><td>{fmt(nio.RENDIMIENTO_NOMINAL[i], 0)}</td>"
+            f"<td>{fmt(d['solucion'][t], 2)}</td><td>{nio.COTAS_BARCOS[i][1]}</td>"
+            f"<td>{fmt(d['valor_barco_extra'][t], 2)}</td></tr>"
+            for i, t in enumerate(nio.TIPOS_BARCO))
+        filas_rec = "".join(
+            f"<tr class='{'limita' if r['limita'] else ''}'><td>{r['recurso']} ({r['unidad']})</td>"
+            f"<td>{fmt(r['disponible'], 0)}</td><td>{fmt(r['usado'], 1)}</td>"
+            f"<td>{fmt(r['holgura'], 1)}</td><td>{'sí' if r['limita'] else 'no'}</td>"
+            f"<td>{fmt(r['precio_sombra'], 3)}</td>"
+            f"<td>{fmt(r['rango_validez'][0], 0)} – "
+            f"{fmt(r['rango_validez'][1], 0) if r['rango_validez'][1] is not None else '∞'}</td></tr>"
+            for r in d["recursos"])
+        filas_pred = "".join(
+            f"<tr class='{'base' if f['modelo'] in (NOMBRE_MEDIA, NOMBRE_LINEAL) else ''}"
+            f"{' neg' if f['r2_test'] < 0 else ''}'>"
+            f"<td>{f['modelo']}</td><td>{fmt(f['r2_test'], 3)}</td>"
+            f"<td>{fmt(f['cv_r2_media'], 3)} ± {fmt(f['cv_r2_desv'], 3)}</td>"
+            f"<td>{fmt(f['mse_test'], 0)}</td><td>{fmt(f['mae_test'], 1)}</td></tr>"
+            for f in p["tabla"])
+        filas_pred += (f"<tr class='techo'><td>Techo: fórmula verdadera sin ruido (no es un modelo)</td>"
+                       f"<td>{fmt(p['techo']['r2'], 3)}</td><td>—</td>"
+                       f"<td>{fmt(p['techo']['mse'], 0)}</td><td>{fmt(p['techo']['mae'], 1)}</td></tr>")
+
+        def r2_rend(f):
+            if not f["r2_rendimiento"]:
+                return "—"
+            return " / ".join(fmt(v, 3) for v in f["r2_rendimiento"].values())
+
+        filas_h = "".join(
+            f"<tr><td>{f['estrategia']}</td><td>{fmt(f['pct_optimo_media'], 2)} %</td>"
+            f"<td>{fmt(f['pct_optimo_mediana'], 2)} %</td><td>{fmt(f['pct_optimo_peor'], 1)} %</td>"
+            f"<td>{fmt(f['pct_escenarios_optimos'], 1)} %</td>"
+            f"<td>{fmt(f['kg_perdidos_media'], 1)}</td><td>{r2_rend(f)}</td></tr>"
+            for f in h["tabla"])
+
+        mejora = c["mejora_hibrido_pp"]
+        recomendacion_hibrido = (
+            "Cuando un coeficiente del modelo de decisión es incierto y depende de "
+            "condiciones observables (aquí, el rendimiento de cada tipo de barco según el "
+            "clima), conviene estimarlo con datos y luego optimizar. En este análisis eso "
+            f"mejora la decisión en {fmt(mejora, 1)} puntos porcentuales de media."
+            if mejora > 0.5 else
+            "En este análisis, estimar los coeficientes con ML no mejora la decisión de forma "
+            "apreciable: la complejidad extra no se justifica.")
+
+        html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decidir y predecir en IO</title>
+<style>
+  :root {{ --fondo:#f5f5f5; --papel:#fff; --texto:#1f2933; --suave:#52606d; --borde:#d9dee3;
+          --acento:#2f6db5; --ok:#e7f4ea; --ok-borde:#2e8540; --aviso:#fff4d6; --aviso-borde:#c78a00;
+          --limita:#fde8e8; --neg:#b42318; }}
+  @media (prefers-color-scheme: dark) {{
+    :root {{ --fondo:#111418; --papel:#1b2027; --texto:#e4e7eb; --suave:#9aa5b1; --borde:#323a45;
+            --acento:#7fb0f0; --ok:#173323; --ok-borde:#4caf6e; --aviso:#3a2f12; --aviso-borde:#d9a520;
+            --limita:#3d1f1f; --neg:#ff8a80; }}
+  }}
+  body {{ font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; margin:0; padding:24px 16px;
+         background:var(--fondo); color:var(--texto); line-height:1.55; }}
+  .container {{ max-width:1000px; margin:0 auto; background:var(--papel); padding:32px;
+               border-radius:10px; border:1px solid var(--borde); }}
+  h1 {{ margin-top:0; border-bottom:3px solid var(--acento); padding-bottom:16px; }}
+  h2 {{ margin-top:36px; }}
+  .nota {{ color:var(--suave); font-size:.92em; }}
+  .aviso {{ background:var(--aviso); border-left:4px solid var(--aviso-borde); padding:14px 18px; margin:16px 0; }}
+  .conclusion {{ background:var(--ok); border-left:4px solid var(--ok-borde); padding:14px 18px; margin:16px 0; }}
+  .tabla {{ overflow-x:auto; }}
+  table {{ width:100%; border-collapse:collapse; margin:16px 0; font-size:.95em; }}
+  th, td {{ border:1px solid var(--borde); padding:8px 10px; text-align:left; }}
+  th {{ background:var(--acento); color:#fff; }}
+  td:not(:first-child) {{ text-align:right; font-variant-numeric: tabular-nums; }}
+  tr.limita {{ background:var(--limita); font-weight:600; }}
+  tr.base td:first-child {{ font-style:italic; }}
+  tr.neg td:nth-child(2) {{ color:var(--neg); font-weight:700; }}
+  tr.techo {{ color:var(--suave); }}
+  code {{ background:var(--fondo); padding:1px 4px; border-radius:3px; }}
+  .dos {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }}
+  .dos > div {{ border:1px solid var(--borde); border-radius:8px; padding:12px 16px; }}
+  @media (max-width: 640px) {{ .dos {{ grid-template-columns:1fr; }} .container {{ padding:18px; }} }}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Decidir y predecir: Simplex y Machine Learning en una flota pesquera</h1>
+<p class="nota">Material docente · CONIPE 2025 · Generado el {datetime.now().strftime('%d/%m/%Y')} con
+<code>analisis_comparativo_io.py</code> (semilla {self.semilla}). Todas las cifras salen de ejecutar ese script.</p>
+
+<div class="aviso">
+<strong>⚠️ Los datos son sintéticos.</strong> No proceden de ninguna pesquería real. Se generan con
+<code>nucleo_io.py</code>: el rendimiento de cada tipo de barco (50, 120 y 200 kg por salida en calma) se
+multiplica por factores de temperatura, fase lunar, estación y viento (el viento penaliza más a los barcos
+pequeños), y a la captura se le suma un ruido aleatorio del 10 % (15 % en el histórico por barco). La salinidad,
+la altura de olas y las variables de mercado no influyen en la captura. Un buen R² solo demuestra que un modelo
+recupera esa fórmula; no dice nada sobre el mundo real.
+</div>
+
+<h2>Dos preguntas distintas</h2>
+<div class="dos">
+  <div><h3>🏛️ Decidir (Simplex / PL)</h3>
+  <p>Con unos rendimientos y unos recursos dados, ¿cuántos barcos de cada tipo enviar? Se evalúa por la
+  solución óptima, los recursos que limitan y los precios sombra. <strong>No se mide con R² ni MSE</strong>:
+  no predice nada.</p></div>
+  <div><h3>🧠 Predecir (Machine Learning)</h3>
+  <p>A partir de las condiciones, ¿cuánto se va a capturar? Se evalúa con R², MSE y validación cruzada,
+  frente a líneas base honestas. <strong>No decide nada</strong> por sí solo.</p></div>
+</div>
+<p>Por eso no tiene sentido ponerlos en la misma tabla de precisión. Lo que sí se puede comparar es
+<em>cómo de buena es una decisión</em> según de dónde salgan sus coeficientes (sección 3).</p>
+
+<h2>1. Decidir: programación lineal</h2>
+<p>Maximizar la captura esperada <code>50·P + 120·M + 200·G</code> (kg), sujeto a combustible
+(<code>20P + 50M + 100G ≤ {fmt(nio.RECURSOS_BASE[0], 0)}</code> L), tripulación
+(<code>2P + 5M + 8G ≤ {fmt(nio.RECURSOS_BASE[1], 0)}</code>), presupuesto
+(<code>1000P + 2500M + 5000G ≤ {fmt(nio.RECURSOS_BASE[2], 0)}</code> $) y barcos disponibles
+(P ≤ 20, M ≤ 15, G ≤ 10). Se resuelve con HiGHS (<code>scipy.optimize.linprog</code>).</p>
+<div class="tabla"><table>
+<tr><th>Tipo de barco</th><th>kg por barco</th><th>Barcos en el óptimo</th><th>Disponibles</th>
+<th>kg extra por un barco más</th></tr>
+{filas_sol}
+<tr><td><strong>Captura óptima</strong></td><td></td><td><strong>{fmt(d['objetivo_kg'], 1)} kg</strong></td><td></td><td></td></tr>
+</table></div>
+<div class="tabla"><table>
+<tr><th>Recurso</th><th>Disponible</th><th>Usado</th><th>Holgura</th><th>¿Limita?</th>
+<th>Precio sombra (kg por unidad)</th><th>Rango donde vale ese precio</th></tr>
+{filas_rec}
+</table></div>
+<p class="nota">Precio sombra: cuántos kg más se capturarían con una unidad más del recurso
+(<code>res.ineqlin.marginals</code> de HiGHS, con el signo cambiado porque <code>linprog</code> minimiza).
+El rango se obtiene re-resolviendo la PL con el recurso desplazado hasta que el precio cambia. En este
+modelo el presupuesto por barco es exactamente 50 veces el combustible por barco, así que ambas restricciones
+son proporcionales: solo puede limitar la más estricta de las dos. La solución admite barcos fraccionarios
+(relajación lineal); exigir enteros sería un problema de programación entera.</p>
+<div class="conclusion">{c['decidir']}</div>
+
+<h2>2. Predecir: capturas a partir de las condiciones</h2>
+<p>{p['n_train']} escenarios de entrenamiento y {p['n_test']} de test. Variables de entrada: barcos de cada tipo,
+recursos, clima, mercado, mes y fase lunar. R² de validación cruzada con 5 particiones sobre el conjunto de
+entrenamiento. Los R² <strong>no se recortan</strong>: un valor negativo indica un modelo peor que predecir la media.</p>
+<div class="tabla"><table>
+<tr><th>Modelo</th><th>R² test</th><th>R² validación cruzada</th><th>MSE test (kg²)</th><th>MAE test (kg)</th></tr>
+{filas_pred}
+</table></div>
+<div class="conclusion">{c['predecir']}</div>
+
+<h2>3. Predecir y luego optimizar (enfoque híbrido)</h2>
+<p>El rendimiento de cada tipo de barco depende del clima y no se conoce de antemano. Se entrena un modelo por
+tipo de barco con un histórico de {h['n_historico']} salidas (captura por barco según el clima). Después, en
+{h['n_escenarios']} escenarios nuevos (clima y recursos aleatorios), la PL decide con los rendimientos
+estimados. La decisión se evalúa con los rendimientos <em>verdaderos</em>: captura obtenida frente a la
+captura óptima que se habría logrado conociéndolos (100 %).</p>
+<div class="tabla"><table>
+<tr><th>Origen de los coeficientes de la PL</th><th>% del óptimo (media)</th><th>Mediana</th><th>Peor caso</th>
+<th>Escenarios con decisión óptima</th><th>kg perdidos (media)</th><th>R² del rendimiento (peq./med./gr.)</th></tr>
+{filas_h}
+</table></div>
+<p class="nota">Captura óptima media con rendimientos verdaderos: {fmt(h['optimo_medio_kg'], 1)} kg por escenario.
+«Decisión óptima» = al menos el 99,9 % del óptimo.</p>
+<div class="conclusion">{c['hibrido']}</div>
+
+<h2>Recomendaciones</h2>
+<ul>
+<li><strong>Optimizar y predecir responden preguntas distintas.</strong> La PL dice qué hacer con unos
+coeficientes dados y qué recurso conviene ampliar (precios sombra); el ML estima cantidades inciertas. No se
+elige uno «en lugar» del otro.</li>
+<li><strong>Para decidir</strong> con un modelo lineal bien planteado, la PL da el óptimo y además explica la
+decisión: qué recursos limitan, cuánto vale cada unidad adicional y en qué rango.</li>
+<li><strong>Para predecir</strong>, compare siempre con la media y con una regresión lineal antes de usar un
+modelo más complejo, y desconfíe de un R² alto en datos sintéticos: puede ser solo la fórmula de generación.</li>
+<li><strong>El ML aporta a la decisión</strong> cuando hay que estimar parámetros inciertos que luego alimentan
+la optimización. {recomendacion_hibrido}</li>
+</ul>
+
+<h2>Limitaciones</h2>
+<ul>
+<li>Datos sintéticos con una estructura elegida para el curso; con otra estructura las cifras cambiarían.</li>
+<li>La PL usa variables continuas y un único periodo; no modela riesgo ni incertidumbre explícita
+(programación estocástica u optimización robusta serían los siguientes pasos).</li>
+<li>Los hiperparámetros de los modelos no se han ajustado; el objetivo es docente, no competir en precisión.</li>
+</ul>
+<p class="nota" style="text-align:center;margin-top:32px">Gráficos interactivos:
+<code>analisis_comparativo_io_completo.html</code> · Cifras en bruto: <code>resultados_analisis_io.json</code></p>
+</div>
+</body>
+</html>
+"""
+        ruta = DIRECTORIO / archivo
+        ruta.write_text(html, encoding="utf-8")
+        self._log(f"✅ Reporte ejecutivo guardado: {archivo}")
+        return str(ruta)
+
+    def guardar_json(self, archivo="resultados_analisis_io.json"):
+        datos = {k: v for k, v in self.resultados.items()}
+        datos["semilla"] = self.semilla
+        ruta = DIRECTORIO / archivo
+        ruta.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._log(f"✅ Resultados guardados: {archivo}")
+        return str(ruta)
+
+    def ejecutar_analisis_completo(self, generar_archivos=True):
+        print("🚀 ANÁLISIS: DECIDIR (PL) · PREDECIR (ML) · PREDECIR Y OPTIMIZAR")
+        print("⚠️  Datos sintéticos generados con una fórmula conocida (nucleo_io.py)")
+        print("=" * 60)
+        self.analizar_decision()
+        self.evaluar_prediccion()
+        self.evaluar_hibrido()
+        self.conclusiones()
+        if generar_archivos:
+            self.crear_visualizaciones()
+            self.generar_reporte_ejecutivo()
+            self.guardar_json()
+        return self.resultados
+
+
 def main():
-    """Función principal"""
-    print("🔬 SISTEMA DE ANÁLISIS COMPARATIVO")
-    print("Investigación Operativa: Clásico vs Moderno")
-    print("=" * 50)
-    
-    # Crear analizador
     analizador = AnalizadorComparativoIO(semilla=42)
-    
-    # Ejecutar análisis completo
     resultados = analizador.ejecutar_analisis_completo()
-    
-    print("\n🎓 VALOR EDUCATIVO DEL ANÁLISIS:")
-    print("   📚 Comparación objetiva de métodos")
-    print("   📊 Métricas cuantitativas precisas")
-    print("   🎯 Recomendaciones contextuales")
-    print("   🔬 Casos de uso específicos")
-    print("   📈 Visualizaciones interactivas")
-    print("   📋 Reporte ejecutivo profesional")
-    
+    print("\n🎓 Conclusiones:")
+    for clave in ("decidir", "predecir", "hibrido"):
+        texto = resultados["conclusiones"][clave]
+        print(f"\n[{clave}] " + texto.replace("<strong>", "").replace("</strong>", ""))
     return resultados
+
 
 if __name__ == "__main__":
     main()

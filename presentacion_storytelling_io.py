@@ -13,17 +13,70 @@ Este script genera una presentación HTML interactiva que combina:
 - Visualizaciones dinámicas y animaciones
 - Elementos interactivos para exploración
 - Diseño responsivo y moderno
+
+Las cifras de la sección "Visualizaciones" se leen de resultados_analisis_io.json,
+que genera analisis_comparativo_io.py. No hay cifras escritas a mano.
 """
 
+import json
 import os
-import base64
 from pathlib import Path
+
+from nucleo_io import fmt
 
 class GeneradorPresentacionIO:
     def __init__(self, directorio_base):
         self.directorio_base = Path(directorio_base)
         self.archivo_storytelling = self.directorio_base / "storytelling_evolucion_io.md"
         self.archivo_salida = self.directorio_base / "presentacion_interactiva_io.html"
+        self.archivo_resultados = self.directorio_base / "resultados_analisis_io.json"
+
+    def leer_resultados(self):
+        """Cifras del análisis comparativo (o None si aún no se ha ejecutado)."""
+        try:
+            return json.loads(self.archivo_resultados.read_text(encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError):
+            return None
+
+    def generar_metricas(self):
+        """Tarjetas con cifras reales del análisis (datos sintéticos)."""
+        r = self.leer_resultados()
+        if r is None:
+            return """
+            <p><em>Ejecute <code>python analisis_comparativo_io.py</code> y vuelva a generar la
+            presentación para ver aquí las cifras del análisis.</em></p>"""
+        pred = {f["modelo"]: f for f in r["prediccion"]["tabla"]}
+        mejor = pred[r["prediccion"]["mejor_modelo"]]
+        hib = {f["estrategia"]: f for f in r["hibrido"]["tabla"]}
+        nominal = hib["Coeficientes nominales (sin ML)"]
+        mejor_h = max((f for f in r["hibrido"]["tabla"] if f is not nominal),
+                      key=lambda f: f["pct_optimo_media"])
+        tarjetas = [
+            (fmt(r["decision"]["objetivo_kg"], 0) + " kg",
+             "Captura óptima del modelo base (PL). Limita: "
+             + ", ".join(x["recurso"] for x in r["decision"]["recursos"] if x["limita"])),
+            (fmt(mejor["r2_test"], 2),
+             f"R² de {r['prediccion']['mejor_modelo']} al predecir capturas "
+             f"(regresión lineal: {fmt(pred['Regresión lineal']['r2_test'], 2)}; "
+             f"techo: {fmt(r['prediccion']['techo']['r2'], 2)})"),
+            (fmt(nominal["pct_optimo_media"], 1) + " %",
+             "De la captura óptima, decidiendo con rendimientos nominales (sin ML)"),
+            (fmt(mejor_h["pct_optimo_media"], 1) + " %",
+             f"De la captura óptima, estimando rendimientos con ML y decidiendo con PL "
+             f"({mejor_h['estrategia']})"),
+        ]
+        html = "".join(f"""
+                <div class="metrica-card">
+                    <div class="metrica-valor">{v}</div>
+                    <div class="metrica-label">{t}</div>
+                </div>""" for v, t in tarjetas)
+        return f"""
+            <h3>Cifras del análisis del curso</h3>
+            <p><strong>⚠️ Datos sintéticos</strong>, generados con una fórmula conocida (ver
+            <code>nucleo_io.py</code>). Salen de ejecutar <code>analisis_comparativo_io.py</code>;
+            no describen ninguna flota real.</p>
+            <div class="metricas-grid">{html}
+            </div>"""
         
     def leer_storytelling(self):
         """Lee el contenido del archivo de storytelling"""
@@ -526,7 +579,7 @@ class GeneradorPresentacionIO:
                 });
             });
             
-            document.querySelectorAll('.metrica-valor').forEach(contador => {
+            document.querySelectorAll('.metrica-valor[data-valor]').forEach(contador => {
                 contadorObserver.observe(contador);
             });
             
@@ -672,8 +725,8 @@ class GeneradorPresentacionIO:
         return '\n'.join(html_procesado)
     
     def generar_seccion_visualizaciones(self):
-        """Genera sección con placeholders para visualizaciones"""
-        return """
+        """Genera sección con placeholders para visualizaciones y cifras reales"""
+        return f"""
         <div class="seccion" id="visualizaciones">
             <h2>🎬 Visualizaciones Interactivas</h2>
             
@@ -701,24 +754,8 @@ class GeneradorPresentacionIO:
                 </div>
             </div>
             
-            <div class="metricas-grid">
-                <div class="metrica-card">
-                    <div class="metrica-valor" data-valor="340">0</div>
-                    <div class="metrica-label">% Incremento en Capturas</div>
-                </div>
-                <div class="metrica-card">
-                    <div class="metrica-valor" data-valor="45">0</div>
-                    <div class="metrica-label">% Reducción Combustible</div>
-                </div>
-                <div class="metrica-card">
-                    <div class="metrica-valor" data-valor="87">0</div>
-                    <div class="metrica-label">% Precisión ML</div>
-                </div>
-                <div class="metrica-card">
-                    <div class="metrica-valor" data-valor="280">0</div>
-                    <div class="metrica-label">% Incremento Rentabilidad</div>
-                </div>
-            </div>
+            {self.generar_metricas()}
+        </div>
         </div>
         """
     
@@ -759,8 +796,8 @@ class GeneradorPresentacionIO:
                 <div class="timeline-item">
                     <div class="timeline-year">2025</div>
                     <div class="timeline-content">
-                        <h3>🚀 Síntesis Híbrida</h3>
-                        <p>Combinación perfecta de métodos clásicos y modernos con IA.</p>
+                        <h3>🚀 Predecir y optimizar</h3>
+                        <p>El ML estima lo incierto; la optimización decide con esas estimaciones.</p>
                         <button class="boton-interactivo" onclick="mostrarDetalle('2025')">Ver Detalles</button>
                     </div>
                 </div>
@@ -773,7 +810,7 @@ class GeneradorPresentacionIO:
                 '1947': 'El método Simplex permitió resolver problemas de optimización lineal de manera sistemática, estableciendo las bases de la Investigación Operativa moderna.',
                 '1980': 'Los algoritmos de punto interior y la programación no lineal permitieron abordar problemas más complejos y de mayor escala.',
                 '2000': 'Machine Learning introdujo la capacidad de aprender de datos históricos y predecir comportamientos futuros sin programación explícita.',
-                '2025': 'La síntesis híbrida combina la precisión matemática del Simplex con la adaptabilidad del ML, creando sistemas optimizados y inteligentes.'
+                '2025': 'Optimizar y predecir responden preguntas distintas. Se combinan cuando el ML estima parámetros inciertos (por ejemplo, el rendimiento de cada barco según el clima) que luego alimentan la optimización.'
             };
             
             alert(`Año ${año}:\n\n${detalles[año]}`);
@@ -867,13 +904,13 @@ caracteristicas = [
                         </div>
                         
                         <h3>2025: La Convergencia</h3>
-                        <p>En 2025, ya no hay que elegir entre el Simplex y el Machine Learning. La nueva generación los <strong>combina</strong> en sistemas híbridos que aprovechan lo mejor de ambos mundos.</p>
+                        <p>En 2025, ya no hay que elegir entre el Simplex y el Machine Learning, porque nunca compitieron: uno <strong>decide</strong> y el otro <strong>predice</strong>. Se combinan cuando el ML estima los parámetros inciertos que después usa la optimización.</p>
                     </div>
                     
                     <div class="seccion" id="impacto">
                         <h2>🎯 El Impacto Transformador</h2>
                         
-                        <h3>Evolución de la Capacidad de Optimización</h3>
+                        <h3>Qué aportó cada etapa</h3>
                         <table class="tabla-comparativa">
                             <thead>
                                 <tr>
@@ -881,7 +918,6 @@ caracteristicas = [
                                     <th>Enfoque</th>
                                     <th>Fortalezas</th>
                                     <th>Limitaciones</th>
-                                    <th>Capacidad Relativa</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -890,28 +926,24 @@ caracteristicas = [
                                     <td>Simplex Clásico</td>
                                     <td>Precisión matemática, Soluciones óptimas</td>
                                     <td>Linealidad, Determinismo</td>
-                                    <td>1.0x</td>
                                 </tr>
                                 <tr>
                                     <td><strong>1980-2000</strong></td>
                                     <td>Programación Avanzada</td>
                                     <td>Problemas no lineales, Mayor escala</td>
                                     <td>Complejidad computacional</td>
-                                    <td>3.2x</td>
                                 </tr>
                                 <tr>
                                     <td><strong>2000-2020</strong></td>
                                     <td>Machine Learning</td>
                                     <td>Aprendizaje de patrones, Adaptabilidad</td>
                                     <td>Caja negra, Necesidad de datos</td>
-                                    <td>6.8x</td>
                                 </tr>
                                 <tr>
                                     <td><strong>2020-2025</strong></td>
-                                    <td>IA Híbrida</td>
-                                    <td>Combina precisión y adaptabilidad</td>
+                                    <td>Predecir y optimizar</td>
+                                    <td>El ML estima coeficientes; la PL decide</td>
                                     <td>Complejidad de implementación</td>
-                                    <td>12.5x</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -921,7 +953,7 @@ caracteristicas = [
                         <h2>🔮 El Futuro que se Avecina</h2>
                         
                         <h3>La Próxima Frontera: Computación Cuántica</h3>
-                        <p>La próxima generación está desarrollando el primer <strong>optimizador cuántico</strong> para flotas pesqueras, capaz de optimizar simultáneamente miles de variables en tiempo real.</p>
+                        <p><em>(Especulativo.)</em> La computación cuántica se investiga para problemas de optimización combinatoria; hoy no hay pruebas de que supere a los métodos clásicos en problemas como este. El código siguiente es solo ilustrativo.</p>
                         
                         <div class="codigo" data-language="Python">
                             <pre>class OptimizadorCuantico:
@@ -931,8 +963,7 @@ caracteristicas = [
         self.backend_cuantico = 'IBM_Quantum_Network'
     
     def optimizar_flota_global(self, flotas_mundiales):
-        # Optimización simultánea de 10,000+ barcos
-        # Tiempo de ejecución: segundos vs días
+        # Ilustrativo: no existe un "optimizador cuántico de flotas"
         pass</pre>
                         </div>
                         
@@ -989,8 +1020,8 @@ def main():
     print("Del Método Simplex a la Inteligencia Artificial")
     print("=" * 50)
     
-    # Directorio base
-    directorio_base = r"C:\Users\Ariel Giamporte\Desktop\Conipe2025\curso_alfabetizacion_CONIPE25-main\extras\Investigacion_Operativa"
+    # Directorio del propio script (antes era una ruta fija de Windows)
+    directorio_base = Path(__file__).resolve().parent
     
     # Crear generador
     generador = GeneradorPresentacionIO(directorio_base)
@@ -1021,7 +1052,7 @@ def main():
     print("\n🎓 VALOR EDUCATIVO:")
     print("   📚 Historia completa de la evolución de la IO")
     print("   🔬 Ejemplos prácticos y casos de estudio")
-    print("   📈 Métricas de impacto y transformación")
+    print("   📈 Cifras reales del análisis (datos sintéticos)")
     print("   🚀 Visión del futuro de la optimización")
     print("   🌊 Narrativa cautivadora y memorable")
     

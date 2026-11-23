@@ -1,352 +1,174 @@
-# 🚀 Proyecto de Investigación Operativa: De Simplex a Machine Learning
+# 🚀 Investigación Operativa: del Simplex al Machine Learning
 
-## 📋 Descripción del Proyecto
+Material docente del curso **CONIPE 2025 – Alfabetización en Ciencia de Datos**. Cuenta la evolución de la
+Investigación Operativa, desde el método Simplex (1947) hasta el Machine Learning, con un caso de
+asignación de barcos en una flota pesquera.
 
-Este proyecto educativo demuestra la evolución de la Investigación Operativa desde los métodos clásicos como el Simplex hasta las técnicas modernas de Machine Learning e Inteligencia Artificial. Utilizando el caso práctico de optimización de flotas pesqueras, exploramos cómo diferentes enfoques pueden resolver problemas complejos de optimización.
+La idea central del material:
 
-## 🎯 Objetivos Educativos
+> **Optimizar y predecir responden preguntas distintas.**
+> El Simplex (programación lineal, PL) **decide**: con unos coeficientes y recursos dados, ¿cuántos barcos
+> de cada tipo enviar? El Machine Learning (ML) **predice**: con unas condiciones dadas, ¿cuánto se va a
+> capturar? El ML aporta a la decisión cuando estima parámetros inciertos que luego alimentan la optimización.
 
-- **Comprender** la evolución histórica de la Investigación Operativa
-- **Comparar** métodos clásicos vs modernos de optimización
-- **Aplicar** técnicas de Machine Learning a problemas de IO
-- **Evaluar** el rendimiento de diferentes enfoques
-- **Desarrollar** soluciones híbridas que combinen lo mejor de ambos mundos
+## ⚠️ Los datos son sintéticos
 
-## 📁 Estructura del Proyecto
+Ningún dato procede de una pesquería real. Todos se generan con fórmulas conocidas más ruido aleatorio:
+
+- **`nucleo_io.py`** (análisis comparativo y app Streamlit): el rendimiento de cada tipo de barco
+  (50, 120 y 200 kg por salida en calma) se multiplica por factores de temperatura, fase lunar, mes y
+  viento. El viento penaliza más a los barcos pequeños que a los grandes. La captura de una flota es
+  `Σ barcos_i · rendimiento_i(clima) · (1 + ε)`, con ε normal de desviación 10 %. La salinidad, la altura de
+  olas y las variables de mercado no influyen, a propósito.
+- **`simplex_ml_optimizacion_pesquera.py`** y **`ml_prediccion_rutas_optimas.py`** generan sus propios datos
+  con fórmulas descritas en cada script.
+
+Consecuencia: un R² alto solo demuestra que un modelo recupera la fórmula de generación, no que funcione con
+datos reales. Por eso el análisis muestra también el **techo** (el R² de la fórmula verdadera sin ruido).
+
+## 📁 Estructura
 
 ```
 Investigacion_Operativa/
-├── 📄 README.md                                    # Este archivo
-├── 🚀 app_streamlit_io.py                         # APLICACIÓN INTERACTIVA STREAMLIT
-├── 🐍 simplex_ml_optimizacion_pesquera.py         # Script principal: Simplex + ML
-├── 🎬 animacion_evolucion_simplex_ml.py           # Generador de animación evolutiva
-├── 🧠 ml_prediccion_rutas_optimas.py              # Modelos ML avanzados
-├── 📊 analisis_comparativo_io.py                  # Análisis comparativo completo
-├── 📖 storytelling_evolucion_io.md                # Narrativa educativa
-├── 🎨 presentacion_storytelling_io.py             # Generador de presentación
-├── 📱 GUIA_STREAMLIT.md                           # Guía de uso de la app Streamlit
-├── 📦 requirements_streamlit.txt                  # Dependencias específicas para Streamlit
-├── 🌐 presentacion_interactiva_io.html            # Presentación interactiva
-├── 📈 analisis_comparativo_io_completo.html       # Visualizaciones comparativas
-├── 📋 reporte_ejecutivo_analisis_io.html          # Reporte ejecutivo
-└── 🎯 visualizaciones_ml_rutas.html               # Visualizaciones ML
+├── nucleo_io.py                          # Mundo sintético, PL (HiGHS) y métricas comunes
+├── analisis_comparativo_io.py            # Análisis principal: decidir, predecir, predecir y optimizar
+│   ├── reporte_ejecutivo_analisis_io.html    # → informe (generado)
+│   ├── analisis_comparativo_io_completo.html # → gráficos interactivos (generado)
+│   └── resultados_analisis_io.json           # → todas las cifras del informe (generado)
+├── app_streamlit_io.py                   # Aplicación interactiva
+├── simplex_ml_optimizacion_pesquera.py   # El problema de "Don Carlos": PL con precios sombra + ML con líneas base
+├── ml_prediccion_rutas_optimas.py        # Modelos de ML para rutas (predicción)
+├── animacion_evolucion_simplex_ml.py     # GIF de la evolución histórica
+├── storytelling_evolucion_io.md          # Narrativa docente (personajes ficticios)
+├── presentacion_storytelling_io.py       # Genera presentacion_interactiva_io.html
+├── tests/test_analisis.py                # Tests (pytest)
+├── GUIA_STREAMLIT.md · GUIA_INSTALACION.md · PROMPT_VIDEO_STREAMLIT.md
+└── requirements.txt
 ```
 
-## 🛠️ Instalación y Configuración
+## 🛠️ Instalación
 
-### Prerrequisitos
-
-- Python 3.8 o superior
-- pip (gestor de paquetes de Python)
-
-### Instalación de Dependencias
+Requiere Python 3.9 o superior.
 
 ```bash
-# Crear entorno virtual (recomendado)
 python -m venv env
-
-# Activar entorno virtual
-# En Windows:
-env\Scripts\activate
-# En Linux/Mac:
-source env/bin/activate
-
-# Instalar dependencias básicas
-pip install numpy pandas matplotlib seaborn scikit-learn scipy plotly
-
-# Para la aplicación Streamlit (adicional)
-pip install streamlit
-# O usar el archivo de requisitos específico:
-pip install -r requirements_streamlit.txt
+source env/bin/activate          # Windows: env\Scripts\activate
+pip install -r requirements.txt
 ```
 
-### Dependencias Específicas
-
-```python
-# Análisis de datos y visualización
-numpy>=1.21.0
-pandas>=1.3.0
-matplotlib>=3.4.0
-seaborn>=0.11.0
-plotly>=5.0.0
-
-# Machine Learning
-scikit-learn>=1.0.0
-scipy>=1.7.0
-
-# Utilidades
-warnings
-time
-datetime
-json
-```
-
-## 🚀 Guía de Uso
-
-### 🌟 APLICACIÓN INTERACTIVA STREAMLIT (RECOMENDADO)
+## ▶️ Cómo ejecutarlo
 
 ```bash
-streamlit run app_streamlit_io.py
-```
-
-**🎯 Características de la App Interactiva:**
-- **Interfaz web moderna** con controles deslizantes
-- **Comparación en tiempo real** entre Simplex y ML
-- **Visualizaciones dinámicas** con Plotly
-- **4 pestañas especializadas**: Simplex, ML, Comparación, Análisis
-- **Parámetros ajustables** para exploración interactiva
-- **Generación de datos sintéticos** configurable
-- **Entrenamiento de modelos ML** en vivo
-- **Análisis de sensibilidad** automático
-
-📱 **Ver**: `GUIA_STREAMLIT.md` para instrucciones detalladas
-
-### 1. Script Principal: Optimización Híbrida
-
-```bash
-python simplex_ml_optimizacion_pesquera.py
-```
-
-**Funcionalidades:**
-- Genera datos sintéticos de flotas pesqueras
-- Aplica optimización Simplex clásica
-- Entrena modelos de Machine Learning
-- Implementa enfoque híbrido
-- Crea visualizaciones comparativas
-
-### 2. Animación Evolutiva
-
-```bash
-python animacion_evolucion_simplex_ml.py
-```
-
-**Genera:**
-- GIF animado mostrando la evolución de IO
-- Frames históricos desde 1947 hasta 2025
-- Comparación visual de metodologías
-
-### 3. Modelos ML Avanzados
-
-```bash
-python ml_prediccion_rutas_optimas.py
-```
-
-**Incluye:**
-- Random Forest, Gradient Boosting, SVM, Neural Networks
-- Análisis exploratorio de datos
-- Optimización de hiperparámetros
-- Visualizaciones interactivas
-
-### 4. Análisis Comparativo Completo
-
-```bash
+# 1. Análisis principal (≈20 s): regenera el informe, los gráficos y el JSON
 python analisis_comparativo_io.py
-```
 
-**Proporciona:**
-- Benchmarking de 6 métodos diferentes
-- Métricas de rendimiento detalladas
-- Reporte ejecutivo profesional
-- Recomendaciones estratégicas
-
-### 5. Presentación Interactiva
-
-```bash
+# 2. Presentación HTML (lee las cifras del JSON del paso 1)
 python presentacion_storytelling_io.py
+
+# 3. Aplicación interactiva
+streamlit run app_streamlit_io.py
+
+# 4. Scripts complementarios
+python simplex_ml_optimizacion_pesquera.py   # genera comparacion_metodos_io.png
+python ml_prediccion_rutas_optimas.py        # genera visualizaciones_ml_rutas.html
+python animacion_evolucion_simplex_ml.py     # genera evolucion_io_simplex_ml.gif
+
+# 5. Tests
+pytest
 ```
 
-**Crea:**
-- Presentación HTML interactiva
-- Narrativa educativa integrada
-- Timeline interactivo
-- Modo oscuro/claro
+## 🔎 Qué demuestra cada parte
 
-## 📊 Métodos Evaluados
+### 1. Decidir: programación lineal (`analisis_comparativo_io.py`, sección 1)
 
-### 🏛️ Métodos Clásicos
+Maximizar `50·P + 120·M + 200·G` kg sujeto a combustible (≤ 3.000 L), tripulación (≤ 150 personas),
+presupuesto (≤ 125.000 $) y barcos disponibles (P ≤ 20, M ≤ 15, G ≤ 10). Se resuelve con HiGHS.
+Se evalúa por la solución, los recursos que limitan, los **precios sombra** (`res.ineqlin.marginals`) y la
+sensibilidad, **no con R² ni MSE**: la PL no predice nada.
 
-1. **Simplex Clásico**
-   - ✅ Solución óptima garantizada
-   - ✅ Rápido para problemas lineales
-   - ❌ Solo problemas lineales
-   - ❌ No maneja incertidumbre
+| Resultado | Valor |
+|-----------|-------|
+| Plan óptimo (pequeños / medianos / grandes) | 20 / 6 / 10 barcos |
+| Captura óptima | 3.720 kg |
+| Recurso que limita | Tripulación: 24 kg por persona adicional, válido aprox. entre 120 y 195 personas |
+| Recursos con holgura (precio sombra 0) | Combustible (sobran 1.300 L) y presupuesto (sobran 40.000 $) |
+| Valor de un barco más disponible | Pequeño: 2 kg · Grande: 8 kg · Mediano: 0 |
 
-### 🧠 Machine Learning
+En este modelo el presupuesto por barco es exactamente 50 veces el combustible por barco, así que ambas
+restricciones son proporcionales y solo puede limitar la más estricta.
 
-2. **Random Forest**
-   - ✅ Maneja no-linealidad
-   - ✅ Robusto al sobreajuste
-   - ❌ Menos interpretable
-   - ❌ Requiere datos abundantes
+### 2. Predecir: Machine Learning (sección 2)
 
-3. **Gradient Boosting**
-   - ✅ Alta precisión
-   - ✅ Captura patrones complejos
-   - ❌ Propenso al sobreajuste
-   - ❌ Tiempo de entrenamiento
+Predicción de la captura total de 1.000 escenarios (700 de entrenamiento, 300 de test). R² **sin recortar**:
+un valor negativo significa que el modelo predice peor que la media.
 
-4. **Support Vector Machine (SVM)**
-   - ✅ Efectivo en alta dimensionalidad
-   - ✅ Memoria eficiente
-   - ❌ Lento en datasets grandes
-   - ❌ Sensible a escalado
+| Modelo | R² test | R² validación cruzada | MSE test | MAE test (kg) |
+|--------|---------|-----------------------|----------|---------------|
+| Media (línea base) | −0,003 | −0,011 ± 0,010 | 906.277 | 734,7 |
+| Regresión lineal (línea base) | 0,791 | 0,784 ± 0,034 | 189.058 | 330,8 |
+| Random Forest | 0,826 | 0,789 ± 0,033 | 157.257 | 293,0 |
+| **Gradient Boosting** | **0,892** | 0,862 ± 0,036 | 97.224 | 217,4 |
+| SVM (RBF) | 0,673 | 0,655 ± 0,039 | 295.608 | 353,6 |
+| Red neuronal (MLP) | 0,809 | 0,789 ± 0,044 | 173.009 | 320,9 |
+| *Techo: fórmula verdadera sin ruido* | *0,968* | — | *28.958* | *119,9* |
 
-5. **Neural Networks**
-   - ✅ Aproximación universal
-   - ✅ Aprende representaciones
-   - ❌ Caja negra
-   - ❌ Requiere muchos datos
+La regresión lineal **no empata** con el mejor modelo: la captura es lineal en el número de barcos pero se
+multiplica por factores climáticos, y un modelo lineal en las variables originales no representa ese
+producto. Ningún modelo supera el techo: el ML solo se acerca a la fórmula con la que se generaron los datos.
 
-### 🚀 Enfoque Híbrido
+### 3. Predecir y luego optimizar (sección 3)
 
-6. **Simplex + ML**
-   - ✅ Combina fortalezas
-   - ✅ Adaptable y robusto
-   - ❌ Mayor complejidad
-   - ❌ Requiere expertise dual
+Un modelo por tipo de barco estima el rendimiento según el clima (histórico de 3.000 salidas). En 300
+escenarios nuevos, la PL decide con esos rendimientos estimados y la decisión se evalúa con los rendimientos
+**verdaderos**, como porcentaje de la captura óptima. Se mide la **calidad de la decisión**, no el R².
 
-## 📈 Resultados Destacados
+| Origen de los coeficientes de la PL | % del óptimo (media) | Mediana | Peor caso | Escenarios con decisión óptima | kg perdidos (media) |
+|-------------------------------------|---------------------:|--------:|----------:|-------------------------------:|--------------------:|
+| Coeficientes nominales (sin ML) | 91,16 % | 96,74 % | 43,5 % | 38,0 % | 156,2 |
+| Regresión lineal + PL | 99,74 % | 100,00 % | 91,7 % | 91,0 % | 4,1 |
+| Random Forest + PL | 99,74 % | 100,00 % | 89,1 % | 90,3 % | 5,0 |
+| Gradient Boosting + PL | 99,79 % | 100,00 % | 88,2 % | 93,3 % | 3,8 |
 
-### Métricas de Rendimiento
+La mejora existe porque, en este mundo sintético, el viento afecta de forma distinta a cada tipo de barco y
+cambia cuál es la mejor combinación. Si el clima escalara por igual todos los rendimientos, la decisión
+óptima no cambiaría y la predicción no aportaría nada a la decisión.
 
-| Método | R² Capturas | MSE | Tiempo (ms) | Clasificación |
-|--------|-------------|-----|-------------|---------------|
-| **Gradient Boosting** | 0.878 | Bajo | Medio | ⭐ Mejor Precisión |
-| **Neural Network** | 0.847 | Bajo | Alto | ⭐ Alta Capacidad |
-| **Random Forest** | 0.769 | Medio | Bajo | ⭐ Equilibrado |
-| **SVM** | 0.640 | Medio | Muy Bajo | ⭐ Más Rápido |
-| **Híbrido** | Variable | Variable | Medio | ⭐ Más Robusto |
-| **Simplex** | Variable | Alto | Muy Bajo | ⭐ Garantías |
+*(Cifras obtenidas con `python analisis_comparativo_io.py`, semilla 42, scikit-learn 1.9 y SciPy 1.18. Otras
+versiones pueden cambiar ligeramente los resultados de los modelos de ML.)*
 
-### Recomendaciones por Escenario
+### Otros scripts
 
-- **🎯 Problemas Lineales Simples:** Simplex Clásico
-- **📊 Datos Abundantes:** Random Forest o Gradient Boosting
-- **⚡ Tiempo Real:** SVM o Simplex
-- **🔬 Exploración:** Neural Networks
-- **🚀 Aplicaciones Críticas:** Enfoque Híbrido
+- **`app_streamlit_io.py`**: lo mismo, de forma interactiva. La pestaña *Decidir vs. predecir* muestra, para
+  el clima elegido en la barra lateral, el plan con coeficientes nominales, con coeficientes estimados y con
+  los verdaderos.
+- **`simplex_ml_optimizacion_pesquera.py`**: el problema de «Don Carlos» del relato. La PL da 15 barcos del
+  tipo 1 y 12.000 $; limita el combustible (4 $ por litro adicional) y hay óptimos alternativos (10 barcos
+  del tipo 2 dan lo mismo). Por separado, predice el beneficio con ML frente a la media y la regresión lineal.
+- **`storytelling_evolucion_io.md`** y la presentación: narrativa histórica con personajes ficticios; las
+  cifras técnicas que citan salen de los scripts.
 
-## 🎓 Valor Educativo
+## 🎓 Recomendaciones que se derivan del análisis
 
-### Para Estudiantes
-- Comprensión práctica de métodos de IO
-- Experiencia hands-on con ML
-- Análisis comparativo objetivo
-- Casos de uso reales
+- Optimizar y predecir responden preguntas distintas; no se ponen en la misma tabla de precisión.
+- Para decidir con un modelo lineal, la PL da el óptimo y además lo explica (qué limita y cuánto vale ampliarlo).
+- Para predecir, compare siempre con la media y una regresión lineal, y desconfíe de un R² alto en datos sintéticos.
+- El ML mejora la decisión cuando estima coeficientes inciertos que dependen de condiciones observables.
 
-### Para Profesionales
-- Benchmarking de metodologías
-- Guías de selección de métodos
-- Implementaciones listas para usar
-- Mejores prácticas
+## ⚠️ Limitaciones
 
-### Para Investigadores
-- Framework de evaluación
-- Datos sintéticos realistas
-- Métricas estandarizadas
-- Base para extensiones
+- Datos sintéticos con una estructura elegida para el curso: con otra estructura, las cifras cambiarían.
+- La PL usa variables continuas (barcos fraccionarios) y un único periodo; no modela el riesgo.
+- Hiperparámetros sin ajustar: el objetivo es docente.
 
-## 🔬 Casos de Uso Específicos
+## 📚 Referencias
 
-### 🐟 Optimización de Flotas Pesqueras
-- **Variables:** Tipos de barcos, recursos, condiciones ambientales
-- **Objetivos:** Maximizar capturas, minimizar costos
-- **Restricciones:** Combustible, tripulación, presupuesto
-- **Complejidad:** Factores no-lineales, incertidumbre
-
-### 📊 Análisis de Sensibilidad
-- Impacto de condiciones climáticas
-- Variaciones en precios de mercado
-- Disponibilidad de recursos
-- Competencia en zonas de pesca
-
-## 🛡️ Consideraciones Técnicas
-
-### Calidad de Datos
-- **Sintéticos:** Generados con patrones realistas
-- **Ruido:** Incluido para simular condiciones reales
-- **Correlaciones:** Modeladas según conocimiento del dominio
-- **Escalabilidad:** 1000+ escenarios para robustez
-
-### Validación de Modelos
-- **Cross-validation:** 5-fold para todos los modelos ML
-- **Métricas múltiples:** R², MSE, MAE
-- **Benchmarking:** Comparación sistemática
-- **Interpretabilidad:** Análisis de importancia de características
-
-## 🔮 Extensiones Futuras
-
-### Técnicas Avanzadas
-- **Optimización Multiobjetivo:** Pareto-optimal solutions
-- **Programación Estocástica:** Manejo de incertidumbre
-- **Deep Learning:** Redes neuronales profundas
-- **Reinforcement Learning:** Aprendizaje por refuerzo
-
-### Aplicaciones Adicionales
-- **Logística:** Optimización de rutas de transporte
-- **Manufactura:** Programación de producción
-- **Finanzas:** Optimización de portafolios
-- **Energía:** Gestión de redes eléctricas
-
-## 📚 Referencias y Recursos
-
-### Literatura Clásica
-- Dantzig, G. B. (1963). *Linear Programming and Extensions*
-- Hillier, F. S., & Lieberman, G. J. (2015). *Introduction to Operations Research*
-- Winston, W. L. (2003). *Operations Research: Applications and Algorithms*
-
-### Machine Learning
-- Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning*
-- Bishop, C. M. (2006). *Pattern Recognition and Machine Learning*
-- Géron, A. (2019). *Hands-On Machine Learning*
-
-### Recursos Online
-- [Scipy Optimization](https://docs.scipy.org/doc/scipy/reference/optimize.html)
-- [Scikit-learn Documentation](https://scikit-learn.org/stable/)
-- [Plotly Documentation](https://plotly.com/python/)
-
-## 🤝 Contribuciones
-
-Este proyecto es parte del **CONIPE 2025 - Curso de Alfabetización en Ciencia de Datos**. Las contribuciones son bienvenidas:
-
-1. **Fork** el repositorio
-2. **Crea** una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. **Commit** tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** a la rama (`git push origin feature/AmazingFeature`)
-5. **Abre** un Pull Request
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
-
-## 👥 Autores
-
-- **Sistema de IA Educativa** - *Desarrollo inicial* - [CONIPE 2025]
-- **Comunidad CONIPE** - *Revisión y mejoras*
-
-## 🙏 Agradecimientos
-
-- **CONIPE 2025** por la oportunidad educativa
-- **Comunidad de Investigación Operativa** por las bases teóricas
-- **Desarrolladores de Python** por las herramientas excepcionales
-- **Estudiantes y profesionales** que utilizan este material
+- Dantzig, G. B. (1963). *Linear Programming and Extensions*.
+- Hillier, F. S., & Lieberman, G. J. *Introduction to Operations Research*.
+- Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning*.
+- Elmachtoub, A. N., & Grigas, P. (2022). Smart "Predict, then Optimize". *Management Science*, 68(1).
+- [SciPy `linprog` (HiGHS)](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.linprog.html) ·
+  [scikit-learn](https://scikit-learn.org/stable/)
 
 ---
 
-## 📞 Contacto y Soporte
-
-Para preguntas, sugerencias o soporte:
-
-- **Email:** conipe2025@educacion.gov
-- **Foro:** [CONIPE Community Forum]
-- **Issues:** [GitHub Issues]
-
----
-
-**¡Explora, aprende y optimiza! 🚀**
-
-*"La Investigación Operativa no es solo sobre encontrar la solución óptima, sino sobre entender el problema lo suficientemente bien como para saber qué optimizar."*
-
----
-
-*Última actualización: Enero 2025*
+*Proyecto del CONIPE 2025 – Curso de Alfabetización en Ciencia de Datos.*

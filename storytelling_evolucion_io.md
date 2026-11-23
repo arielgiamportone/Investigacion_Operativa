@@ -2,6 +2,11 @@
 
 ## Una Historia de Transformación en la Investigación Operativa Pesquera
 
+> **Nota para el lector.** Los personajes (Don Carlos, María Elena, Diego, Sofía) y sus anécdotas son
+> **ficticios**. Las cifras técnicas que aparecen salen de ejecutar los scripts del curso sobre **datos
+> sintéticos** (generados con `nucleo_io.py` y `simplex_ml_optimizacion_pesquera.py`); no describen
+> ninguna flota real. Donde antes había porcentajes sin fuente, se han retirado.
+
 ---
 
 ## 📖 Prólogo: El Despertar de una Nueva Era
@@ -18,7 +23,7 @@ Esta es la historia de cómo la **Investigación Operativa**, nacida en los camp
 
 En 1947, **George Dantzig** no sabía que estaba a punto de cambiar para siempre la forma en que la humanidad resolvería problemas de optimización. Su **método Simplex** nació de una necesidad militar: ¿cómo asignar recursos limitados de la manera más eficiente posible?
 
-> *"La programación lineal es el arte de encontrar la mejor solución cuando todo parece imposible."* - George Dantzig
+La idea de fondo era sencilla y poderosa: si los objetivos y las restricciones se pueden escribir como ecuaciones lineales, existe un procedimiento sistemático para encontrar la mejor asignación posible.
 
 ### La Elegancia Matemática
 
@@ -37,16 +42,17 @@ Sujeto a:
 
 Imaginen a **Don Carlos**, un veterano capitán de flota pesquera en 1950, enfrentando el problema clásico:
 
-- **3 tipos de barcos** disponibles
-- **Combustible limitado**: 3,000 litros
+- **3 tipos de barcos** disponibles (beneficio de 800, 1.200 y 1.800 $ por barco)
+- **Combustible limitado**: 3.000 litros
 - **Tripulación limitada**: 150 personas
+- **Como mucho 15 barcos** en el mar
 - **Objetivo**: Maximizar las ganancias
 
-El Simplex le daba una respuesta **exacta**, **óptima**, **garantizada**:
-- 5 barcos pequeños
-- 3 barcos medianos  
-- 2 barcos grandes
-- **Ganancia máxima**: $45,000
+El Simplex le daba una respuesta **exacta** y **óptima** para ese modelo (resultado de `simplex_ml_optimizacion_pesquera.py`):
+- 15 barcos del tipo 1
+- **Ganancia máxima**: $12.000
+- El recurso que limita es el **combustible**: cada litro adicional valdría $4 (su **precio sombra**). Sobran 30 personas de tripulación, así que contratar más no aportaría nada.
+- Hay **óptimos alternativos**: 10 barcos del tipo 2 dan la misma ganancia. El Simplex no solo da una respuesta; también explica *por qué* y *qué conviene ampliar*.
 
 ### Las Limitaciones Ocultas
 
@@ -57,7 +63,7 @@ Pero el mundo real no era tan simple como las ecuaciones de Don Carlos:
 ❌ **¿Cómo incorporar la experiencia del capitán?**  
 ❌ **¿Qué hacer con la incertidumbre del mercado?**
 
-El Simplex, en toda su elegancia matemática, asumía un mundo **lineal**, **predecible**, **estático**. Pero el océano... el océano era todo lo contrario.
+El modelo de Don Carlos asumía un mundo **lineal**, **predecible**, **estático**: los 800, 1.200 y 1.800 $ por barco eran números fijos. Pero el océano... el océano era todo lo contrario. El problema no era el Simplex, que resolvía bien lo que se le pedía, sino que esos coeficientes cambiaban con el clima y nadie sabía estimarlos.
 
 ---
 
@@ -157,14 +163,13 @@ zonas_optimas = clasificador_zonas.predict([
 
 En 2005, Diego implementó su primer sistema de ML:
 
-📊 **Datos históricos**: 10 años de operaciones  
-🎯 **Precisión de predicción**: 87% en capturas  
-💰 **Incremento en ganancias**: 34% respecto al año anterior  
-⏱️ **Reducción en tiempo de búsqueda**: 45%
+📊 **Datos históricos**: años de registros de salidas, clima y capturas  
+🎯 **Predicción de capturas**: en los datos sintéticos del curso, Gradient Boosting alcanza R² = 0,89 en test, frente a 0,79 de una regresión lineal y un techo de 0,97 (la fórmula con la que se generaron los datos)  
+⚠️ **La lección de Diego**: un R² alto en datos generados con una fórmula solo demuestra que el modelo recupera esa fórmula, y el modelo predice; **no decide** cuántos barcos enviar
 
 ### La Revelación
 
-Pero lo más sorprendente no fueron las métricas, sino el **descubrimiento**:
+Pero lo más sorprendente no fueron las métricas, sino el **descubrimiento** (en la ficción del relato):
 
 > *"El algoritmo encontró patrones que ninguno de nosotros había notado. Correlaciones entre la migración de ballenas y la abundancia de sardinas, relaciones entre las fases lunares y el comportamiento del atún. Era como si la máquina hubiera aprendido a leer el lenguaje secreto del océano."* - Capitán Diego
 
@@ -174,7 +179,7 @@ Pero lo más sorprendente no fueron las métricas, sino el **descubrimiento**:
 
 ### La Síntesis Perfecta
 
-En 2025, la nieta de Diego, **Dra. Sofia**, no tuvo que elegir entre el Simplex y el Machine Learning. Ella los **combinó**.
+En 2025, la nieta de Diego, **Dra. Sofia**, entendió que nunca había tenido que elegir entre el Simplex y el Machine Learning: responden preguntas distintas. El Simplex **decide** (cuántos barcos enviar); el Machine Learning **predice** (cuánto rendirá cada barco con el clima de mañana). Ella los **combinó**: el ML estima los coeficientes que antes eran fijos y el Simplex decide con ellos.
 
 ### La Arquitectura Híbrida
 
@@ -186,7 +191,8 @@ class OptimizadorHibrido:
         self.motor_decision = self.crear_motor_hibrido()
     
     def optimizar_flota(self, condiciones_actuales):
-        # Paso 1: ML predice escenarios probables
+        # Paso 1: ML estima el rendimiento de cada tipo de barco
+        #         según el clima (los coeficientes de la PL)
         escenarios = self.predictor_ml.generar_escenarios(
             condiciones_actuales
         )
@@ -224,7 +230,7 @@ La flota de Sofia no era solo un conjunto de barcos; era un **ecosistema intelig
 - **Modelos de ensemble** combinando múltiples predicciones
 
 #### ⚡ Capa de Optimización
-- **Simplex cuántico** para problemas de gran escala
+- **Programación lineal y entera** (Simplex, punto interior, ramificación y acotación) para problemas de gran escala
 - **Optimización multiobjetivo** balanceando ganancia y sostenibilidad
 - **Algoritmos evolutivos** adaptándose en tiempo real
 - **Programación dinámica** para decisiones secuenciales
@@ -235,21 +241,20 @@ La flota de Sofia no era solo un conjunto de barcos; era un **ecosistema intelig
 
 Un **huracán categoría 4** se aproximaba, los **precios del combustible** se dispararon 300%, y una **nueva regulación ambiental** limitaba las zonas de pesca.
 
-#### La Respuesta del Sistema Clásico (Simplex):
+#### La Respuesta del Modelo Lineal con los Coeficientes de Siempre:
 ```
 SOLUCIÓN NO FACTIBLE
-RESTRICCIONES CONTRADICTORIAS
-SISTEMA DETENIDO
+RESTRICCIONES CONTRADICTORIAS: zonas permitidas + combustible disponible
 ```
+Lejos de ser un fallo, es **información valiosa**: el Simplex dice que, con esas reglas y ese combustible, el plan habitual es imposible, y qué restricciones chocan.
 
-#### La Respuesta del Sistema ML Puro:
+#### La Respuesta del Modelo Predictivo Solo:
 ```
-PREDICCIÓN: PÉRDIDAS MASIVAS
-RECOMENDACIÓN: SUSPENDER OPERACIONES
-CONFIANZA: 78%
+PREDICCIÓN: capturas muy por debajo de lo habitual en la zona costera
 ```
+Útil, pero no dice qué hacer con los barcos.
 
-#### La Respuesta del Sistema Híbrido:
+#### La Respuesta de Sofía (predecir y luego optimizar):
 ```python
 # Análisis en tiempo real
 escenarios_alternativos = [
@@ -259,22 +264,19 @@ escenarios_alternativos = [
     'diversificacion_temporal_actividades'
 ]
 
-# Optimización adaptativa
+# Paso 1: el ML re-estima el rendimiento de cada tipo de barco
+#         con el pronóstico del huracán
+# Paso 2: la PL re-planifica cada escenario con esos coeficientes
+#         y con las nuevas restricciones (zonas, combustible caro)
 for escenario in escenarios_alternativos:
     solucion = optimizar_con_restricciones_dinamicas(
         escenario,
         riesgo_maximo=0.15,
         sostenibilidad_minima=0.8
     )
-    
-# Resultado: Operación híbrida exitosa
-resultado = {
-    'ganancia_neta': 89000,  # vs pérdida proyectada de -45000
-    'barcos_seguros': '100%',
-    'impacto_ambiental': 'mínimo',
-    'satisfaccion_tripulacion': '94%'
-}
 ```
+
+El relato no inventa una cifra de ganancia: lo que el curso **sí** puede medir está en `analisis_comparativo_io.py`. En sus datos sintéticos, decidir con los rendimientos de un día de calma logra de media el 91,2 % de la captura óptima (con algún escenario por debajo del 45 %), mientras que estimar los rendimientos con ML y decidir con la PL llega al 99,7–99,8 %.
 
 ---
 
@@ -302,7 +304,7 @@ Cada generación de la familia pesquera aprendió algo fundamental:
 #### Dra. Sofia (2025) - La Síntesis
 > *"La verdadera inteligencia no está en elegir entre lo viejo y lo nuevo, sino en combinar lo mejor de ambos mundos."*
 
-**Lección**: La **hibridación inteligente** de técnicas clásicas y modernas produce resultados **superiores** a cualquier enfoque individual.
+**Lección**: Optimizar y predecir responden **preguntas distintas**. El ML aporta a la decisión cuando estima parámetros inciertos que luego alimentan la optimización; no la sustituye.
 
 ### El Mapa de la Evolución
 
@@ -311,84 +313,23 @@ Cada generación de la familia pesquera aprendió algo fundamental:
 | **1947-1980** | Simplex Clásico | Precisión matemática, Soluciones óptimas garantizadas | Linealidad, Determinismo, Rigidez | Fundamentos sólidos de optimización |
 | **1980-2000** | Programación Avanzada | Problemas no lineales, Mayor escala | Complejidad computacional, Modelado manual | Expansión del alcance de la IO |
 | **2000-2020** | Machine Learning | Aprendizaje de patrones, Adaptabilidad | Caja negra, Necesidad de datos masivos | Capacidad predictiva revolucionaria |
-| **2020-2025** | IA Híbrida | Combina precisión y adaptabilidad, Robustez | Complejidad de implementación | Síntesis de 80 años de evolución |
+| **2020-2025** | Predecir y optimizar | El ML estima coeficientes inciertos; la PL decide con ellos | Complejidad de implementación; la decisión solo es tan buena como las estimaciones | Síntesis de 80 años de evolución |
 
 ---
 
 ## 🎯 Capítulo 6: El Impacto Transformador - "Números que Cuentan Historias"
 
-### La Revolución en Cifras
+### Lo que Muestran las Cifras de este Curso
 
-#### Evolución de la Capacidad de Optimización
+Las versiones anteriores de este capítulo citaban porcentajes de impacto en la industria (capturas, combustible, rentabilidad, sostenibilidad) y «casos de éxito documentados» **sin ninguna fuente**. Se han retirado. Estas son, en cambio, las cifras que el curso puede respaldar, porque salen de ejecutar sus scripts sobre **datos sintéticos**:
 
-```python
-# Métricas comparativas (base 1947 = 1.0)
-evolución_capacidad = {
-    1947: {'simplex_clasico': 1.0},
-    1980: {'programacion_avanzada': 3.2},
-    2000: {'machine_learning': 6.8},
-    2025: {'ia_hibrida': 12.5}
-}
-```
+| Pregunta | Herramienta | Resultado en el curso | Script |
+|----------|-------------|-----------------------|--------|
+| ¿Cuántos barcos enviar? | Programación lineal | Plan óptimo de 3.720 kg; limita la tripulación (24 kg por persona adicional) | `analisis_comparativo_io.py` |
+| ¿Cuánto se capturará? | Machine Learning | Gradient Boosting R² = 0,89; regresión lineal 0,79; media ≈ 0; techo 0,97 | `analisis_comparativo_io.py` |
+| ¿Mejora la decisión si el ML estima los rendimientos? | ML + PL | 91,2 % del óptimo con rendimientos fijos frente a 99,7–99,8 % con rendimientos estimados | `analisis_comparativo_io.py` |
 
-#### Impacto en la Industria Pesquera
-
-**Eficiencia Operativa:**
-- 🚀 **Incremento en capturas**: 340% (1947-2025)
-- ⛽ **Reducción en consumo de combustible**: 45%
-- ⏱️ **Optimización de tiempo en mar**: 60% más eficiente
-- 💰 **Incremento en rentabilidad**: 280%
-
-**Sostenibilidad Ambiental:**
-- 🌱 **Reducción en sobrepesca**: 70%
-- 🐟 **Mejora en selectividad de especies**: 85%
-- 🌊 **Minimización de impacto en ecosistemas**: 65%
-- ♻️ **Optimización de rutas para menor huella de carbono**: 55%
-
-**Innovación Tecnológica:**
-- 📡 **Integración de sensores IoT**: 100% de flotas modernas
-- 🛰️ **Uso de datos satelitales**: 95% de operaciones
-- 🤖 **Automatización de decisiones**: 78% de procesos
-- 📊 **Análisis predictivo en tiempo real**: 89% de flotas
-
-### Casos de Éxito Documentados
-
-#### Caso 1: Flota Atlántica Sur (2024)
-**Problema**: Optimización de 25 barcos en zona de alta variabilidad climática
-
-**Solución Híbrida Implementada:**
-```python
-resultados_caso_1 = {
-    'metodo_anterior': {
-        'enfoque': 'programacion_lineal_tradicional',
-        'ganancia_anual': 2_400_000,
-        'eficiencia_combustible': 0.65,
-        'satisfaccion_tripulacion': 0.72
-    },
-    'metodo_hibrido': {
-        'enfoque': 'simplex_ml_integrado',
-        'ganancia_anual': 3_680_000,
-        'eficiencia_combustible': 0.89,
-        'satisfaccion_tripulacion': 0.94
-    },
-    'mejora': {
-        'ganancia': '+53.3%',
-        'eficiencia': '+36.9%',
-        'satisfaccion': '+30.6%'
-    }
-}
-```
-
-#### Caso 2: Cooperativa Pesquera del Pacífico (2025)
-**Problema**: Coordinación de 8 flotas independientes para maximizar beneficio colectivo
-
-**Innovación**: Algoritmo de optimización colaborativa con teoría de juegos
-
-**Resultados:**
-- **Beneficio individual promedio**: +67%
-- **Reducción de conflictos por zonas**: -89%
-- **Mejora en sostenibilidad**: +78%
-- **Tiempo de implementación**: 3 meses
+La lección no está en el tamaño de los números, sino en **qué se compara con qué**: una decisión se juzga por lo cerca que queda del óptimo; una predicción, por su error frente a una línea base. Mezclar ambas medidas (por ejemplo, calcular el R² de un Simplex) no tiene sentido.
 
 ---
 
@@ -396,7 +337,7 @@ resultados_caso_1 = {
 
 ### La Próxima Frontera: Computación Cuántica
 
-**Dr. Alex**, bisnieto de Sofia, está desarrollando el primer **optimizador cuántico** para flotas pesqueras:
+*(Este capítulo es especulativo.)* **Dr. Alex**, bisnieto de Sofia, sueña con un **optimizador cuántico** para flotas pesqueras. Hoy la computación cuántica se investiga para optimización combinatoria, pero no hay pruebas de que supere a los métodos clásicos en problemas como este:
 
 ```python
 class OptimizadorCuantico:
@@ -406,9 +347,7 @@ class OptimizadorCuantico:
         self.backend_cuantico = 'IBM_Quantum_Network'
     
     def optimizar_flota_global(self, flotas_mundiales):
-        # Optimización simultánea de 10,000+ barcos
-        # Considerando interacciones cuánticas entre variables
-        # Tiempo de ejecución: segundos vs días en sistemas clásicos
+        # Código ilustrativo: no existe un "optimizador cuántico de flotas"
         pass
 ```
 
@@ -457,7 +396,7 @@ Y el océano, por primera vez en su existencia eterna, se sintió verdaderamente
 
 1. **La Evolución es Inevitable**: Lo que hoy parece revolucionario, mañana será fundamento.
 
-2. **La Síntesis Supera a la Sustitución**: No se trata de reemplazar lo viejo con lo nuevo, sino de combinar lo mejor de cada era.
+2. **La Síntesis Supera a la Sustitución**: No se trata de reemplazar lo viejo con lo nuevo, sino de saber qué pregunta responde cada herramienta y combinarlas cuando hace falta.
 
 3. **La Complejidad Requiere Humildad**: Cada avance nos muestra cuánto más hay por descubrir.
 
@@ -486,7 +425,7 @@ En cada optimización que ejecutamos, en cada modelo que entrenamos, en cada dec
 ### Para Profundizar
 
 - **Código Fuente**: Todos los scripts desarrollados en este proyecto
-- **Datasets**: Datos sintéticos para experimentación
+- **Datasets**: Datos sintéticos para experimentación (ver `nucleo_io.py` para saber cómo se generan)
 - **Visualizaciones**: Gráficos interactivos y animaciones
 - **Documentación Técnica**: Guías de implementación detalladas
 
