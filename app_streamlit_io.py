@@ -31,16 +31,21 @@ from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+import sys
 import time
 import warnings
+from pathlib import Path
 
-import nucleo_io as nio
+# nucleo_io.py está junto a este archivo: se añade su carpeta al path para que
+# el import funcione se lance la app desde donde se lance.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import nucleo_io as nio  # noqa: E402
 
 warnings.filterwarnings('ignore')
 
 # Configuración de la página
 st.set_page_config(
-    page_title="IO Interactive: Simplex vs ML",
+    page_title="IO Interactive: decidir y predecir",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -201,8 +206,8 @@ if 'optimizador' not in st.session_state:
     st.session_state.optimizador = OptimizadorInteractivo()
 
 # Título principal
-st.markdown('<h1 class="main-header">🚀 IO Interactive: Simplex vs Machine Learning</h1>', unsafe_allow_html=True)
-st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Comparación Interactiva de Métodos de Investigación Operativa</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">🚀 IO Interactive: decidir con Simplex, predecir con ML</h1>', unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Dos herramientas para dos preguntas distintas (datos sintéticos)</p>', unsafe_allow_html=True)
 
 # Sidebar para configuración
 st.sidebar.header("⚙️ Configuración")
@@ -322,7 +327,7 @@ with tab1:
                     'Usado': np.round(resultado['uso'], 2),
                     'Holgura': np.round(resultado['holgura'], 2),
                     'Precio sombra (kg/unidad)': np.round(resultado['precios_sombra'], 4),
-                }), use_container_width=True, hide_index=True)
+                }), width="stretch", hide_index=True)
                 st.caption("Un recurso con holgura tiene precio sombra 0: tener más no aumenta la captura. "
                            "Combustible y presupuesto son proporcionales en este modelo (presupuesto = 50 × combustible "
                            "por barco), así que solo puede limitar el más estricto de los dos.")
@@ -383,7 +388,7 @@ with tab1:
                 height=500
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.warning("No hay puntos factibles con las restricciones actuales")
 
@@ -475,7 +480,7 @@ with tab2:
             )
             
             fig_comp.update_layout(height=400, showlegend=False)
-            st.plotly_chart(fig_comp, use_container_width=True)
+            st.plotly_chart(fig_comp, width="stretch")
             
             # Gráfico de predicciones vs reales
             st.subheader("🎯 Predicciones vs Valores Reales")
@@ -509,7 +514,7 @@ with tab2:
                 height=400
             )
             
-            st.plotly_chart(fig_pred, use_container_width=True)
+            st.plotly_chart(fig_pred, width="stretch")
     
     else:
         st.warning("⚠️ Primero entrena los modelos ML en la barra lateral")
@@ -534,7 +539,7 @@ with tab3:
             {'Modelo': nombre, 'R² test': info['r2'], 'MSE': info['mse'], 'MAE': info['mae']}
             for nombre, info in st.session_state.optimizador.modelos_entrenados.items()
         ])
-        st.dataframe(df_precision, use_container_width=True, hide_index=True)
+        st.dataframe(df_precision, width="stretch", hide_index=True)
         ml = df_precision[~df_precision['Modelo'].isin(['Media (línea base)', 'Regresión lineal'])]
         mejor = ml.loc[ml['R² test'].idxmax()]
         r2_lineal = df_precision.set_index('Modelo').loc['Regresión lineal', 'R² test']
@@ -571,7 +576,7 @@ with tab3:
                     'Captura real obtenida (kg)': round(obtenido, 1),
                     '% del óptimo': round(100 * obtenido / opt['capturas_esperadas'], 2),
                 })
-            st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(filas), width="stretch", hide_index=True)
             st.caption("La decisión se evalúa con los rendimientos verdaderos (conocidos porque los datos son "
                        "sintéticos). Prueba a subir el viento: castiga más a los barcos pequeños y la combinación "
                        "óptima cambia. El resultado agregado en muchos escenarios está en "
@@ -592,7 +597,7 @@ with tab4:
         
         with col1:
             st.subheader("📊 Estadísticas Descriptivas")
-            st.dataframe(datos.describe(), use_container_width=True)
+            st.dataframe(datos.describe(), width="stretch")
             
             st.subheader("🔗 Matriz de Correlación")
             
@@ -613,7 +618,7 @@ with tab4:
                 color_continuous_scale='RdBu'
             )
             fig_corr.update_layout(height=500)
-            st.plotly_chart(fig_corr, use_container_width=True)
+            st.plotly_chart(fig_corr, width="stretch")
         
         with col2:
             st.subheader("📈 Distribuciones")
@@ -631,7 +636,7 @@ with tab4:
                 marginal='box'
             )
             fig_dist.update_layout(height=400)
-            st.plotly_chart(fig_dist, use_container_width=True)
+            st.plotly_chart(fig_dist, width="stretch")
             
             st.subheader("🌊 Análisis por Condiciones Ambientales")
             
@@ -648,7 +653,7 @@ with tab4:
                 hover_data=['salinidad', 'altura_olas']
             )
             fig_scatter.update_layout(height=400)
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.plotly_chart(fig_scatter, width="stretch")
         
         # Análisis de sensibilidad
         st.subheader("🔍 Capturas según las condiciones (exploratorio)")
@@ -669,7 +674,7 @@ with tab4:
                 yaxis_title='Capturas Promedio (kg)',
                 height=400
             )
-            st.plotly_chart(fig_temp, use_container_width=True)
+            st.plotly_chart(fig_temp, width="stretch")
         
         with col4:
             # Impacto del viento
@@ -685,7 +690,7 @@ with tab4:
                 yaxis_title='kg por barco',
                 height=400
             )
-            st.plotly_chart(fig_viento, use_container_width=True)
+            st.plotly_chart(fig_viento, width="stretch")
         
         # Insights automáticos
         st.subheader("🧠 Insights Automáticos")
@@ -719,7 +724,7 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #666; margin-top: 2rem;">
     <p>🚀 <strong>IO Interactive</strong> - Desarrollado para CONIPE 2025</p>
-    <p>Comparación Interactiva de Métodos de Investigación Operativa</p>
+    <p>Material docente de Investigación Operativa</p>
     <p><em>Decidir (Simplex) · Predecir (ML) · Predecir y optimizar — con datos sintéticos</em></p>
 </div>
 """, unsafe_allow_html=True)
