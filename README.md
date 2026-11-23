@@ -41,14 +41,15 @@ Investigacion_Operativa/
 ├── animacion_evolucion_simplex_ml.py     # GIF de la evolución histórica
 ├── storytelling_evolucion_io.md          # Narrativa docente (personajes ficticios)
 ├── presentacion_storytelling_io.py       # Genera presentacion_interactiva_io.html
-├── tests/test_analisis.py                # Tests (pytest)
+├── tests/                                # Tests (pytest): PL, métricas y app Streamlit
+├── .github/workflows/tests.yml           # CI: tests y scripts con versiones mínimas y recientes
 ├── GUIA_STREAMLIT.md · GUIA_INSTALACION.md · PROMPT_VIDEO_STREAMLIT.md
 └── requirements.txt
 ```
 
 ## 🛠️ Instalación
 
-Requiere Python 3.9 o superior.
+Requiere Python 3.10 o superior (lo exige Streamlit 1.51).
 
 ```bash
 python -m venv env
@@ -73,7 +74,7 @@ python simplex_ml_optimizacion_pesquera.py   # genera comparacion_metodos_io.png
 python ml_prediccion_rutas_optimas.py        # genera visualizaciones_ml_rutas.html
 python animacion_evolucion_simplex_ml.py     # genera evolucion_io_simplex_ml.gif
 
-# 5. Tests
+# 5. Tests (≈20 s): PL frente a cálculos de referencia, R² sin recortar y recorrido completo de la app
 pytest
 ```
 
@@ -133,8 +134,9 @@ La mejora existe porque, en este mundo sintético, el viento afecta de forma dis
 cambia cuál es la mejor combinación. Si el clima escalara por igual todos los rendimientos, la decisión
 óptima no cambiaría y la predicción no aportaría nada a la decisión.
 
-*(Cifras obtenidas con `python analisis_comparativo_io.py`, semilla 42, scikit-learn 1.9 y SciPy 1.18. Otras
-versiones pueden cambiar ligeramente los resultados de los modelos de ML.)*
+*(Cifras obtenidas con `python analisis_comparativo_io.py`, semilla 42, scikit-learn 1.9 y SciPy 1.18. Con las
+versiones mínimas de `requirements.txt` (scikit-learn 1.3, SciPy 1.11) la PL da exactamente lo mismo y solo
+cambian en la tercera decimal Random Forest y Gradient Boosting.)*
 
 ### Otros scripts
 
@@ -144,6 +146,9 @@ versiones pueden cambiar ligeramente los resultados de los modelos de ML.)*
 - **`simplex_ml_optimizacion_pesquera.py`**: el problema de «Don Carlos» del relato. La PL da 15 barcos del
   tipo 1 y 12.000 $; limita el combustible (4 $ por litro adicional) y hay óptimos alternativos (10 barcos
   del tipo 2 dan lo mismo). Por separado, predice el beneficio con ML frente a la media y la regresión lineal.
+- **`ml_prediccion_rutas_optimas.py`**: predice captura, beneficio y eficiencia de rutas con ML, frente a la
+  media y una regresión lineal. La regresión lineal queda cerca en beneficio (R² 0,89 frente a 0,94) y lejos en
+  captura y eficiencia. Las «mejores rutas» son candidatas con mayor beneficio *predicho*, no resultados.
 - **`storytelling_evolucion_io.md`** y la presentación: narrativa histórica con personajes ficticios; las
   cifras técnicas que citan salen de los scripts.
 
@@ -153,6 +158,13 @@ versiones pueden cambiar ligeramente los resultados de los modelos de ML.)*
 - Para decidir con un modelo lineal, la PL da el óptimo y además lo explica (qué limita y cuánto vale ampliarlo).
 - Para predecir, compare siempre con la media y una regresión lineal, y desconfíe de un R² alto en datos sintéticos.
 - El ML mejora la decisión cuando estima coeficientes inciertos que dependen de condiciones observables.
+
+## ✅ Comprobaciones
+
+`pytest` ejecuta 9 tests: la solución y los precios sombra de la PL base frente a una enumeración de vértices,
+el problema dual y diferencias finitas; que ningún R² se recorte; y un recorrido completo de la app Streamlit.
+El flujo de GitHub Actions (`.github/workflows/tests.yml`) repite los tests y ejecuta todos los scripts con las
+versiones mínimas de `requirements.txt` (Python 3.10) y con las más recientes (Python 3.13).
 
 ## ⚠️ Limitaciones
 

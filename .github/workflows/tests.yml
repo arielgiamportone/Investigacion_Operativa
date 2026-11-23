@@ -1,0 +1,57 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: ${{ matrix.nombre }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Versiones mínimas declaradas en requirements.txt
+          - nombre: Versiones mínimas (Python 3.10)
+            python: "3.10"
+            minimas: true
+          # Versiones más recientes que admite requirements.txt
+          - nombre: Versiones recientes (Python 3.13)
+            python: "3.13"
+            minimas: false
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          if [ "${{ matrix.minimas }}" = "true" ]; then
+            # Convierte cada "paquete>=X" de requirements.txt en "paquete==X"
+            sed -E 's/>=/==/; s/ *#.*//' requirements.txt | grep '==' > requisitos_minimos.txt
+            cat requisitos_minimos.txt
+            pip install -r requisitos_minimos.txt
+          else
+            pip install -r requirements.txt
+          fi
+          pip list | grep -iE "numpy|pandas|scikit|scipy|plotly|streamlit|matplotlib|seaborn|pillow|pytest"
+
+      - name: Tests (PL, métricas y app Streamlit)
+        run: pytest -v
+
+      - name: Ejecutar los scripts
+        run: |
+          python analisis_comparativo_io.py
+          python presentacion_storytelling_io.py
+          python simplex_ml_optimizacion_pesquera.py
+          python ml_prediccion_rutas_optimas.py
+          python animacion_evolucion_simplex_ml.py

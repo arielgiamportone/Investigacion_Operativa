@@ -7,13 +7,13 @@
 #### 1. Verificar Python
 ```bash
 python --version
-# Debe ser Python 3.8 o superior
+# Debe ser Python 3.10 o superior
 ```
 
 #### 2. Crear Entorno Virtual
 ```bash
-# Navegar al directorio del proyecto
-cd "C:\Users\Ariel Giamporte\Desktop\Conipe2025\curso_alfabetizacion_CONIPE25-main\extras\Investigacion_Operativa"
+# Navegar al directorio del proyecto (la carpeta donde clonaste el repositorio)
+cd Investigacion_Operativa
 
 # Crear entorno virtual
 python -m venv env
@@ -27,47 +27,60 @@ source env/bin/activate
 
 #### 3. Instalar Dependencias
 ```bash
-# Instalación básica
-pip install numpy pandas matplotlib seaborn scikit-learn scipy plotly
+# Instala todo lo necesario (scripts, app Streamlit y tests)
+pip install -r requirements.txt
 
 # Verificar instalación
-python -c "import numpy, pandas, matplotlib, seaborn, sklearn, scipy, plotly; print('✅ Todas las dependencias instaladas correctamente')"
+python -c "import numpy, pandas, matplotlib, seaborn, sklearn, scipy, plotly, streamlit; print('✅ Todas las dependencias instaladas correctamente')"
+
+# Comprobar que todo funciona
+pytest
 ```
 
 ### 🎯 Ejecución Rápida
 
 #### Ejecutar Análisis Completo
 ```bash
-# Script principal
-python simplex_ml_optimizacion_pesquera.py
-
-# Análisis comparativo
+# Análisis comparativo (genera el informe y el JSON con las cifras)
 python analisis_comparativo_io.py
 
-# Presentación interactiva
+# Presentación interactiva (usa las cifras del paso anterior)
 python presentacion_storytelling_io.py
+
+# Problema de "Don Carlos": PL con precios sombra + ML con líneas base
+python simplex_ml_optimizacion_pesquera.py
+
+# Aplicación interactiva
+streamlit run app_streamlit_io.py
 ```
 
 ### 📁 Archivos Generados
 
 Después de la ejecución, encontrarás:
 
+- `reporte_ejecutivo_analisis_io.html` - Informe: decidir (PL), predecir (ML) y predecir y optimizar
+- `analisis_comparativo_io_completo.html` - Gráficos interactivos del informe
+- `resultados_analisis_io.json` - Todas las cifras del informe
 - `presentacion_interactiva_io.html` - Presentación principal
-- `analisis_comparativo_io_completo.html` - Visualizaciones comparativas
-- `reporte_ejecutivo_analisis_io.html` - Reporte ejecutivo
-- `visualizaciones_ml_rutas.html` - Análisis ML detallado
+- `comparacion_metodos_io.png` - Gráficos de `simplex_ml_optimizacion_pesquera.py`
+- `visualizaciones_ml_rutas.html` - Gráficos de `ml_prediccion_rutas_optimas.py`
+
+⚠️ Todos los datos son **sintéticos** (ver `nucleo_io.py` y el README).
 
 ### 🔧 Solución de Problemas
 
 #### Error: "No module named 'plotly'"
 ```bash
-pip install plotly
+pip install -r requirements.txt
 ```
 
 #### Error: "No module named 'sklearn'"
 ```bash
-pip install scikit-learn
+pip install -r requirements.txt
 ```
+
+#### Error al instalar Streamlit con Python 3.8 o 3.9
+La app necesita Streamlit 1.51 o superior, que requiere Python 3.10. Actualiza Python.
 
 #### Error de permisos en Windows
 ```bash
@@ -90,11 +103,13 @@ try:
     import sklearn
     import scipy
     import plotly
+    import streamlit
     print("✅ Todas las dependencias están disponibles")
     print(f"NumPy: {np.__version__}")
     print(f"Pandas: {pd.__version__}")
     print(f"Scikit-learn: {sklearn.__version__}")
     print(f"Plotly: {plotly.__version__}")
+    print(f"Streamlit: {streamlit.__version__}")
 except ImportError as e:
     print(f"❌ Error: {e}")
 ```

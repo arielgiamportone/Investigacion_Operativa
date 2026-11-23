@@ -23,6 +23,9 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.dummy import DummyRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
 from sklearn.cluster import KMeans
 import plotly.graph_objects as go
 import plotly.express as px
@@ -246,13 +249,20 @@ class PredictorRutasML:
             'eficiencia_ruta': datos_ml['eficiencia_ruta']
         }
         
-        # Modelos a entrenar
+        # Modelos a entrenar. Las dos primeras son líneas base: cualquier modelo
+        # de ML debe compararse con ellas. Los modelos que necesitan escalado lo
+        # llevan dentro de un pipeline, para que la validación cruzada no use
+        # información de las particiones de validación.
         modelos_config = {
+            'Media (línea base)': DummyRegressor(strategy='mean'),
+            'Regresión lineal': make_pipeline(StandardScaler(), LinearRegression()),
             'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42),
             'Gradient Boosting': GradientBoostingRegressor(n_estimators=100, random_state=42),
-            'SVM': SVR(kernel='rbf', C=100, gamma='scale'),
-            'Neural Network': MLPRegressor(hidden_layer_sizes=(100, 50), max_iter=500, random_state=42)
+            'SVM': make_pipeline(StandardScaler(), SVR(kernel='rbf', C=100, gamma='scale')),
+            'Neural Network': make_pipeline(StandardScaler(), MLPRegressor(
+                hidden_layer_sizes=(100, 50), max_iter=500, random_state=42))
         }
+        lineas_base = ('Media (línea base)', 'Regresión lineal')
         
         # Entrenar para cada objetivo
         for objetivo_nombre, y in objetivos.items():
@@ -263,28 +273,17 @@ class PredictorRutasML:
                 X, y, test_size=0.2, random_state=42
             )
             
-            # Escalado para modelos que lo requieren
-            X_train_scaled = self.scaler.fit_transform(X_train)
-            X_test_scaled = self.scaler.transform(X_test)
-            
             resultados_objetivo = {}
             
             for nombre_modelo, modelo in modelos_config.items():
                 print(f"   Entrenando {nombre_modelo}...")
                 
-                # Usar datos escalados para SVM y Neural Network
-                if nombre_modelo in ['SVM', 'Neural Network']:
-                    modelo.fit(X_train_scaled, y_train)
-                    y_pred = modelo.predict(X_test_scaled)
-                    # Validación cruzada
-                    cv_scores = cross_val_score(modelo, X_train_scaled, y_train, cv=5)
-                else:
-                    modelo.fit(X_train, y_train)
-                    y_pred = modelo.predict(X_test)
-                    # Validación cruzada
-                    cv_scores = cross_val_score(modelo, X_train, y_train, cv=5)
+                # Validación cruzada (R²) sobre el entrenamiento y evaluación en test
+                cv_scores = cross_val_score(modelo, X_train, y_train, cv=5, scoring='r2')
+                modelo.fit(X_train, y_train)
+                y_pred = modelo.predict(X_test)
                 
-                # Métricas
+                # Métricas (el R² se informa tal cual, aunque sea negativo)
                 mse = mean_squared_error(y_test, y_pred)
                 mae = mean_absolute_error(y_test, y_pred)
                 r2 = r2_score(y_test, y_pred)
@@ -306,9 +305,16 @@ class PredictorRutasML:
             
             self.resultados_evaluacion[objetivo_nombre] = resultados_objetivo
             
-            # Seleccionar mejor modelo para este objetivo
-            mejor = max(resultados_objetivo.items(), key=lambda x: x[1]['r2'])
-            print(f"   🏆 Mejor modelo: {mejor[0]} (R² = {mejor[1]['r2']:.4f})")
+            # Mejor modelo de ML (las líneas base no compiten) y comparación con ellas.
+            # Se elige por la validación cruzada, no por el test, para no
+            # sobreajustar la elección al conjunto de test.
+            candidatos = {k: v for k, v in resultados_objetivo.items() if k not in lineas_base}
+            mejor = max(candidatos.items(), key=lambda x: x[1]['cv_mean'])
+            r2_lineal = resultados_objetivo['Regresión lineal']['r2']
+            print(f"   🏆 Mejor modelo de ML (por validación cruzada): {mejor[0]} "
+                  f"(R² test = {mejor[1]['r2']:.4f}; regresión lineal = {r2_lineal:.4f})")
+            if mejor[1]['r2'] - r2_lineal <= 0.01:
+                print("   ℹ️ La regresión lineal empata o gana: el ML no aporta en este objetivo.")
         
         print("\n✅ Entrenamiento de modelos completado")
         return self.resultados_evaluacion
@@ -360,7 +366,12 @@ class PredictorRutasML:
     
     def prediccion_rutas_optimas(self, n_predicciones=10):
         """
-        Genera predicciones de rutas óptimas usando el mejor modelo
+        Ordena rutas candidatas por el beneficio PREDICHO con el mejor modelo.
+
+        Ojo: es una selección entre 1000 candidatas aleatorias, no una
+        optimización, y el beneficio que se muestra es una predicción. Al elegir
+        las predicciones más altas se tienden a elegir también los mayores
+        errores al alza (la "maldición del ganador").
         """
         print(f"\n🎯 PREDICCIÓN DE {n_predicciones} RUTAS ÓPTIMAS")
         print("=" * 40)
@@ -406,7 +417,7 @@ class PredictorRutasML:
             rutas_optimas.append(ruta)
         
         # Mostrar resultados
-        print("🏆 TOP RUTAS ÓPTIMAS PREDICHAS:")
+        print("🏆 CANDIDATAS CON MAYOR BENEFICIO PREDICHO (predicciones, no resultados):")
         print("=" * 35)
         
         for ruta in reversed(rutas_optimas[-5:]):  # Top 5
@@ -433,8 +444,8 @@ class PredictorRutasML:
             subplot_titles=(
                 'Comparación de Modelos por Objetivo',
                 'Importancia de Características',
-                'Predicciones vs Valores Reales',
-                'Mapa de Rutas Óptimas'
+                'Beneficio: predicción vs. real (Random Forest, test)',
+                'Rutas históricas sintéticas (color: beneficio)'
             ),
             specs=[[{"type": "bar"}, {"type": "bar"}],
                    [{"type": "scatter"}, {"type": "scatter"}]]
@@ -470,7 +481,7 @@ class PredictorRutasML:
                 row=1, col=2
             )
         
-        # 3. Predicciones vs Reales (mejor modelo)
+        # 3. Predicciones vs Reales (Random Forest, el modelo que se ajusta en la búsqueda de hiperparámetros)
         mejor_resultado = self.resultados_evaluacion['beneficio_neto']['Random Forest']
         
         fig.add_trace(

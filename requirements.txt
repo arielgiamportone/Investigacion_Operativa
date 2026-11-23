@@ -2,7 +2,7 @@
 # CONIPE 2025 - Alfabetización en Ciencia de Datos
 
 # Framework principal
-streamlit>=1.28.0
+streamlit>=1.51.0  # width="stretch" en st.plotly_chart; requiere Python >= 3.10
 
 # Análisis de datos
 numpy>=1.24.0
