@@ -44,7 +44,8 @@ Investigacion_Operativa/
 ├── tests/                                # Tests (pytest): PL, métricas y app Streamlit
 ├── .github/workflows/tests.yml           # CI: tests y scripts con versiones mínimas y recientes
 ├── GUIA_STREAMLIT.md · GUIA_INSTALACION.md · PROMPT_VIDEO_STREAMLIT.md
-└── requirements.txt
+├── requirements.txt
+└── LICENSE                               # Licencia MIT
 ```
 
 ## 🛠️ Instalación
@@ -180,6 +181,14 @@ versiones mínimas de `requirements.txt` (Python 3.10) y con las más recientes 
 - Elmachtoub, A. N., & Grigas, P. (2022). Smart "Predict, then Optimize". *Management Science*, 68(1).
 - [SciPy `linprog` (HiGHS)](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.linprog.html) ·
   [scikit-learn](https://scikit-learn.org/stable/)
+
+---
+
+## 📄 Licencia
+
+Este proyecto se distribuye bajo la [licencia MIT](LICENSE): puede usarse, copiarse, modificarse y
+redistribuirse libremente, también con fines docentes o comerciales, siempre que se conserve el aviso de
+copyright y de licencia.
 
 ---
 
