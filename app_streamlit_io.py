@@ -2,18 +2,17 @@
 # -*- coding: utf-8 -*-
 """
 Aplicación Interactiva de Investigación Operativa
-Streamlit App: Simplex vs Machine Learning vs Híbrido
+Streamlit App: decidir (Simplex), predecir (ML) y predecir-y-optimizar
 
 Curso: CONIPE 2025 - Alfabetización en Ciencia de Datos
 Autor: Sistema de IA Educativa
 Fecha: 2025
 
 Esta aplicación permite:
-- Comparar métodos de optimización en tiempo real
-- Ajustar parámetros interactivamente
-- Visualizar resultados dinámicamente
-- Explorar diferentes escenarios
-- Entender las diferencias entre enfoques
+- Resolver la PL de asignación de barcos y ver precios sombra (decidir)
+- Entrenar modelos de ML para estimar capturas, frente a líneas base (predecir)
+- Ver cómo cambia la decisión si los rendimientos se estiman con ML
+- Explorar los datos SINTÉTICOS (generados con nucleo_io.py; no son reales)
 """
 
 import streamlit as st
@@ -24,15 +23,19 @@ import seaborn as sns
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-from scipy.optimize import linprog
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.svm import SVR
 from sklearn.neural_network import MLPRegressor
+from sklearn.dummy import DummyRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.preprocessing import StandardScaler
 import time
 import warnings
+
+import nucleo_io as nio
+
 warnings.filterwarnings('ignore')
 
 # Configuración de la página
@@ -85,260 +88,112 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 class OptimizadorInteractivo:
+    """Estado de la app. El mundo sintético, la PL y las métricas vienen de nucleo_io."""
+
     def __init__(self):
         self.datos_generados = None
         self.modelos_entrenados = {}
+        self.modelos_rendimiento = {}
         self.resultados = {}
-        
+
     def generar_datos_sinteticos(self, n_escenarios, semilla):
-        """Genera datos sintéticos para la optimización"""
-        np.random.seed(semilla)
-        
-        datos = {
-            # Variables de decisión
-            'barcos_pequenos': np.random.randint(0, 20, n_escenarios),
-            'barcos_medianos': np.random.randint(0, 15, n_escenarios),
-            'barcos_grandes': np.random.randint(0, 10, n_escenarios),
-            
-            # Recursos disponibles
-            'combustible_disponible': np.random.uniform(1000, 5000, n_escenarios),
-            'tripulacion_disponible': np.random.randint(50, 300, n_escenarios),
-            'presupuesto': np.random.uniform(50000, 200000, n_escenarios),
-            
-            # Condiciones ambientales
-            'temperatura_agua': np.random.uniform(15, 25, n_escenarios),
-            'salinidad': np.random.uniform(30, 40, n_escenarios),
-            'velocidad_viento': np.random.uniform(0, 30, n_escenarios),
-            'altura_olas': np.random.uniform(0.5, 4.0, n_escenarios),
-            
-            # Factores de mercado
-            'precio_pescado': np.random.uniform(2, 8, n_escenarios),
-            'demanda_mercado': np.random.uniform(0.5, 1.5, n_escenarios),
-            'competencia_zona': np.random.uniform(0.1, 1.0, n_escenarios),
-            
-            # Factores temporales
-            'mes': np.random.randint(1, 13, n_escenarios),
-            'fase_lunar': np.random.uniform(0, 1, n_escenarios),
-        }
-        
-        # Calcular variables objetivo
-        datos['capturas_totales'] = self._calcular_capturas_complejas(datos)
-        datos['beneficio_neto'] = self._calcular_beneficio_complejo(datos)
-        datos['eficiencia_operativa'] = self._calcular_eficiencia(datos)
-        
-        self.datos_generados = pd.DataFrame(datos)
+        """Datos SINTÉTICOS: captura = Σ barcos_i · rendimiento_i(clima) · (1 + ruido 10 %)."""
+        datos = nio.generar_datos_flota(n_escenarios, semilla)
+        total = datos[['barcos_pequenos', 'barcos_medianos', 'barcos_grandes']].sum(axis=1)
+        datos['capturas_por_barco'] = np.where(total > 0, datos['capturas_totales'] / total.where(total > 0, 1), 0)
+        self.datos_generados = datos.drop(columns=['capturas_sin_ruido'])
+        self.semilla = semilla
         return self.datos_generados
-    
-    def _calcular_capturas_complejas(self, datos):
-        """Modelo complejo para calcular capturas"""
-        base_pequenos = datos['barcos_pequenos'] * 50
-        base_medianos = datos['barcos_medianos'] * 120
-        base_grandes = datos['barcos_grandes'] * 200
-        
-        # Factores ambientales
-        factor_temp = 1 + 0.1 * np.sin((datos['temperatura_agua'] - 20) * np.pi / 10)
-        factor_viento = np.maximum(0.3, 1 - datos['velocidad_viento'] / 40)
-        factor_lunar = 1 + 0.2 * np.sin(datos['fase_lunar'] * 2 * np.pi)
-        
-        # Factores estacionales
-        factor_estacional = 1 + 0.3 * np.sin((datos['mes'] - 6) * np.pi / 6)
-        
-        # Interacciones no lineales
-        sinergia_flota = 1 + 0.1 * np.log1p(datos['barcos_pequenos'] + datos['barcos_medianos'] + datos['barcos_grandes'])
-        
-        capturas = (base_pequenos + base_medianos + base_grandes) * \
-                  factor_temp * factor_viento * factor_lunar * factor_estacional * sinergia_flota
-        
-        # Añadir ruido realista
-        ruido = np.random.normal(0, 0.1, len(capturas))
-        return np.maximum(0, capturas * (1 + ruido))
-    
-    def _calcular_beneficio_complejo(self, datos):
-        """Modelo complejo para calcular beneficio"""
-        # Costos operativos
-        costo_pequenos = datos['barcos_pequenos'] * 1000
-        costo_medianos = datos['barcos_medianos'] * 2500
-        costo_grandes = datos['barcos_grandes'] * 5000
-        
-        # Costos variables
-        costo_combustible = (datos['barcos_pequenos'] * 20 + 
-                           datos['barcos_medianos'] * 50 + 
-                           datos['barcos_grandes'] * 100) * \
-                          (1 + datos['velocidad_viento'] / 30)
-        
-        # Ingresos
-        capturas = self._calcular_capturas_complejas(datos)
-        ingresos = capturas * datos['precio_pescado'] * datos['demanda_mercado']
-        
-        # Penalizaciones por competencia
-        factor_competencia = 1 - 0.3 * datos['competencia_zona']
-        
-        beneficio = (ingresos * factor_competencia) - \
-                   (costo_pequenos + costo_medianos + costo_grandes + costo_combustible)
-        
-        return beneficio
-    
-    def _calcular_eficiencia(self, datos):
-        """Calcula eficiencia operativa"""
-        total_barcos = datos['barcos_pequenos'] + datos['barcos_medianos'] + datos['barcos_grandes']
-        capturas = self._calcular_capturas_complejas(datos)
-        
-        eficiencia = np.where(total_barcos > 0, capturas / total_barcos, 0)
-        return eficiencia / np.maximum(1, datos['velocidad_viento'] / 10)
-    
-    def optimizar_simplex(self, combustible, tripulacion, presupuesto):
-        """Optimización usando Simplex"""
+
+    def optimizar_simplex(self, combustible, tripulacion, presupuesto, coeficientes=None):
+        """PL: max Σ rendimiento_i · x_i  s.a. combustible, tripulación, presupuesto y barcos disponibles."""
         inicio = time.time()
-        
-        # Definir problema de optimización lineal
-        # Maximizar: 50*x1 + 120*x2 + 200*x3 (capturas esperadas)
-        c = [-50, -120, -200]  # Negativo para maximización
-        
-        # Restricciones
-        A_ub = [
-            [20, 50, 100],    # Combustible
-            [2, 5, 8],        # Tripulación
-            [1000, 2500, 5000] # Presupuesto
-        ]
-        
-        b_ub = [combustible, tripulacion, presupuesto]
-        
-        # Límites de variables
-        bounds = [(0, 20), (0, 15), (0, 10)]
-        
-        try:
-            resultado = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
-            
-            if resultado.success:
-                x1, x2, x3 = resultado.x
-                capturas_predichas = 50*x1 + 120*x2 + 200*x3
-                beneficio_predicho = capturas_predichas * 5 - (1000*x1 + 2500*x2 + 5000*x3)
-                tiempo_ejecucion = time.time() - inicio
-                
-                return {
-                    'exito': True,
-                    'barcos_pequenos': x1,
-                    'barcos_medianos': x2,
-                    'barcos_grandes': x3,
-                    'capturas_predichas': capturas_predichas,
-                    'beneficio_predicho': beneficio_predicho,
-                    'tiempo_ejecucion': tiempo_ejecucion
-                }
-            else:
-                return {'exito': False, 'mensaje': 'No se encontró solución factible'}
-                
-        except Exception as e:
-            return {'exito': False, 'mensaje': f'Error: {str(e)}'}
-    
+        coef = nio.RENDIMIENTO_NOMINAL if coeficientes is None else coeficientes
+        sol = nio.resolver_lp(coef, [combustible, tripulacion, presupuesto])
+        if not sol['exito']:
+            return {'exito': False, 'mensaje': f"No hay solución factible ({sol['mensaje']})"}
+        x1, x2, x3 = sol['x']
+        return {
+            'exito': True,
+            'barcos_pequenos': x1,
+            'barcos_medianos': x2,
+            'barcos_grandes': x3,
+            'x': sol['x'],
+            'capturas_esperadas': sol['objetivo'],
+            'holgura': sol['holgura'],
+            'uso': sol['uso'],
+            'precios_sombra': sol['precios_sombra'],
+            'valor_barco_extra': sol['valor_barco_extra'],
+            'tiempo_ejecucion': time.time() - inicio,
+        }
+
     def entrenar_modelos_ml(self):
-        """Entrena modelos de Machine Learning"""
+        """Entrena modelos de predicción de capturas (con líneas base) y, aparte,
+        modelos del rendimiento por tipo de barco para el enfoque híbrido."""
         if self.datos_generados is None:
             return False
-        
-        # Preparar datos
-        caracteristicas = [
-            'barcos_pequenos', 'barcos_medianos', 'barcos_grandes',
-            'combustible_disponible', 'tripulacion_disponible', 'presupuesto',
-            'temperatura_agua', 'salinidad', 'velocidad_viento', 'altura_olas',
-            'precio_pescado', 'demanda_mercado', 'competencia_zona',
-            'mes', 'fase_lunar'
-        ]
-        
-        X = self.datos_generados[caracteristicas]
+
+        X = self.datos_generados[nio.VARIABLES_PREDICCION]
         y = self.datos_generados['capturas_totales']
-        
-        # Dividir datos
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-        
-        # Escalar características
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        # Modelos a entrenar
+
         modelos = {
+            'Media (línea base)': DummyRegressor(),
+            'Regresión lineal': make_pipeline(StandardScaler(), LinearRegression()),
             'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42),
             'Gradient Boosting': GradientBoostingRegressor(n_estimators=100, random_state=42),
-            'SVM': SVR(kernel='rbf', C=100, gamma='scale'),
-            'Neural Network': MLPRegressor(hidden_layer_sizes=(100, 50), max_iter=500, random_state=42)
+            'SVM': make_pipeline(StandardScaler(), SVR(kernel='rbf', C=100, gamma='scale')),
+            'Neural Network': make_pipeline(StandardScaler(), MLPRegressor(
+                hidden_layer_sizes=(100, 50), max_iter=500, random_state=42)),
         }
-        
+
         resultados_ml = {}
-        
         for nombre, modelo in modelos.items():
             inicio = time.time()
-            
-            # Entrenar modelo
-            if nombre in ['SVM', 'Neural Network']:
-                modelo.fit(X_train_scaled, y_train)
-                y_pred = modelo.predict(X_test_scaled)
-            else:
-                modelo.fit(X_train, y_train)
-                y_pred = modelo.predict(X_test)
-            
+            modelo.fit(X_train, y_train)
             tiempo_entrenamiento = time.time() - inicio
-            
-            # Calcular métricas
-            mse = mean_squared_error(y_test, y_pred)
-            r2 = r2_score(y_test, y_pred)
-            mae = mean_absolute_error(y_test, y_pred)
-            
+            y_pred = modelo.predict(X_test)
+            m = nio.metricas_regresion(y_test, y_pred)   # R² sin recortar
             resultados_ml[nombre] = {
                 'modelo': modelo,
-                'scaler': scaler if nombre in ['SVM', 'Neural Network'] else None,
-                'mse': mse,
-                'r2': r2,
-                'mae': mae,
+                'mse': m['mse'],
+                'r2': m['r2'],
+                'mae': m['mae'],
                 'tiempo_entrenamiento': tiempo_entrenamiento,
                 'predicciones_test': y_pred,
-                'valores_reales': y_test.values
+                'valores_reales': y_test.values,
             }
-        
         self.modelos_entrenados = resultados_ml
+
+        # Rendimiento por tipo de barco según el clima (para "predecir y optimizar")
+        hist = nio.generar_historico_salidas(1000, getattr(self, 'semilla', 42) + 1)
+        self.modelos_rendimiento = {}
+        for nombre, crear in {
+            'Regresión lineal': lambda: make_pipeline(StandardScaler(), LinearRegression()),
+            'Gradient Boosting': lambda: GradientBoostingRegressor(n_estimators=100, random_state=42),
+        }.items():
+            self.modelos_rendimiento[nombre] = [
+                crear().fit(hist.loc[hist['tipo'] == t, nio.VARIABLES_CLIMA],
+                            hist.loc[hist['tipo'] == t, 'captura_por_barco'])
+                for t in nio.TIPOS_BARCO]
         return True
-    
+
+    def estimar_rendimientos(self, nombre, clima):
+        """Rendimiento estimado (kg por barco) de cada tipo para unas condiciones."""
+        entrada = pd.DataFrame([clima])[nio.VARIABLES_CLIMA]
+        return np.array([m.predict(entrada)[0] for m in self.modelos_rendimiento[nombre]])
+
     def predecir_ml(self, modelo_nombre, parametros):
-        """Realiza predicción con modelo ML"""
+        """Predicción de capturas con un modelo entrenado."""
         if modelo_nombre not in self.modelos_entrenados:
             return None
-        
-        modelo_info = self.modelos_entrenados[modelo_nombre]
-        modelo = modelo_info['modelo']
-        scaler = modelo_info['scaler']
-        
-        # Preparar datos de entrada
-        entrada = np.array([[
-            parametros['barcos_pequenos'],
-            parametros['barcos_medianos'], 
-            parametros['barcos_grandes'],
-            parametros['combustible_disponible'],
-            parametros['tripulacion_disponible'],
-            parametros['presupuesto'],
-            parametros['temperatura_agua'],
-            parametros['salinidad'],
-            parametros['velocidad_viento'],
-            parametros['altura_olas'],
-            parametros['precio_pescado'],
-            parametros['demanda_mercado'],
-            parametros['competencia_zona'],
-            parametros['mes'],
-            parametros['fase_lunar']
-        ]])
-        
+        modelo = self.modelos_entrenados[modelo_nombre]['modelo']
+        entrada = pd.DataFrame([parametros])[nio.VARIABLES_PREDICCION]
         inicio = time.time()
-        
-        # Realizar predicción
-        if scaler is not None:
-            entrada_escalada = scaler.transform(entrada)
-            prediccion = modelo.predict(entrada_escalada)[0]
-        else:
-            prediccion = modelo.predict(entrada)[0]
-        
-        tiempo_prediccion = time.time() - inicio
-        
+        prediccion = modelo.predict(entrada)[0]
         return {
             'capturas_predichas': prediccion,
-            'tiempo_prediccion': tiempo_prediccion
+            'tiempo_prediccion': time.time() - inicio,
         }
 
 # Inicializar optimizador
@@ -354,6 +209,9 @@ st.sidebar.header("⚙️ Configuración")
 
 # Generar datos sintéticos
 st.sidebar.subheader("📊 Datos Sintéticos")
+st.sidebar.caption("⚠️ Los datos no son reales: se generan con una fórmula conocida "
+                   "(rendimiento por tipo de barco × factores de clima) más un 10 % de ruido. "
+                   "Ver nucleo_io.py.")
 n_escenarios = st.sidebar.slider("Número de escenarios", 100, 2000, 1000, 100)
 semilla = st.sidebar.number_input("Semilla aleatoria", 1, 1000, 42)
 
@@ -409,7 +267,7 @@ barcos_m = st.sidebar.slider("Barcos medianos", 0, 15, 3, 1)
 barcos_g = st.sidebar.slider("Barcos grandes", 0, 10, 2, 1)
 
 # Contenido principal
-tab1, tab2, tab3, tab4 = st.tabs(["🏛️ Simplex", "🧠 Machine Learning", "📊 Comparación", "📈 Análisis"])
+tab1, tab2, tab3, tab4 = st.tabs(["🏛️ Simplex", "🧠 Machine Learning", "🔀 Decidir vs. predecir", "📈 Análisis"])
 
 # Tab 1: Simplex
 with tab1:
@@ -434,8 +292,9 @@ with tab1:
         st.markdown("""
         <div class="method-card">
             <h4>🎯 Función Objetivo</h4>
-            <p>Maximizar: 50×P + 120×M + 200×G</p>
-            <p>Donde P, M, G son barcos pequeños, medianos y grandes</p>
+            <p>Maximizar: 50×P + 120×M + 200×G (kg esperados en un día de calma)</p>
+            <p>Donde P, M, G son barcos pequeños, medianos y grandes (máx. 20, 15 y 10)</p>
+            <p>La PL <strong>decide</strong>; no predice nada, así que no se mide con R².</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -450,12 +309,23 @@ with tab1:
                         <li><strong>Barcos Pequeños:</strong> {resultado['barcos_pequenos']:.1f}</li>
                         <li><strong>Barcos Medianos:</strong> {resultado['barcos_medianos']:.1f}</li>
                         <li><strong>Barcos Grandes:</strong> {resultado['barcos_grandes']:.1f}</li>
-                        <li><strong>Capturas Predichas:</strong> {resultado['capturas_predichas']:.1f} kg</li>
-                        <li><strong>Beneficio Predicho:</strong> ${resultado['beneficio_predicho']:.2f}</li>
+                        <li><strong>Captura esperada (según los coeficientes):</strong> {resultado['capturas_esperadas']:.1f} kg</li>
+                        <li><strong>Ingreso esperado a ${precio:.2f}/kg:</strong> ${resultado['capturas_esperadas'] * precio:,.2f}</li>
                         <li><strong>Tiempo de Ejecución:</strong> {resultado['tiempo_ejecucion']*1000:.2f} ms</li>
                     </ul>
                 </div>
                 """, unsafe_allow_html=True)
+                st.markdown("**Recursos y precios sombra** (kg adicionales por una unidad más del recurso)")
+                st.dataframe(pd.DataFrame({
+                    'Recurso': [f"{r} ({u})" for r, u in zip(nio.RECURSOS, nio.UNIDADES_RECURSOS)],
+                    'Disponible': [combustible, tripulacion, presupuesto],
+                    'Usado': np.round(resultado['uso'], 2),
+                    'Holgura': np.round(resultado['holgura'], 2),
+                    'Precio sombra (kg/unidad)': np.round(resultado['precios_sombra'], 4),
+                }), use_container_width=True, hide_index=True)
+                st.caption("Un recurso con holgura tiene precio sombra 0: tener más no aumenta la captura. "
+                           "Combustible y presupuesto son proporcionales en este modelo (presupuesto = 50 × combustible "
+                           "por barco), así que solo puede limitar el más estricto de los dos.")
             else:
                 st.markdown(f"""
                 <div class="warning-card">
@@ -539,7 +409,7 @@ with tab2:
             <div class="metric-card">
                 <h4>📊 Métricas del Modelo: {modelo_seleccionado}</h4>
                 <ul>
-                    <li><strong>R² Score:</strong> {modelo_info['r2']:.3f}</li>
+                    <li><strong>R² Score (sin recortar):</strong> {modelo_info['r2']:.3f}</li>
                     <li><strong>MSE:</strong> {modelo_info['mse']:.2f}</li>
                     <li><strong>MAE:</strong> {modelo_info['mae']:.2f}</li>
                     <li><strong>Tiempo de Entrenamiento:</strong> {modelo_info['tiempo_entrenamiento']:.3f}s</li>
@@ -644,134 +514,72 @@ with tab2:
     else:
         st.warning("⚠️ Primero entrena los modelos ML en la barra lateral")
 
-# Tab 3: Comparación
+# Tab 3: Decidir vs. predecir
 with tab3:
-    st.header("📊 Comparación de Métodos")
-    
+    st.header("🔀 Decidir vs. predecir")
+    st.markdown("""
+    El **Simplex (PL)** y el **Machine Learning** responden preguntas distintas, así que no se
+    ponen en la misma tabla de precisión ni de velocidad:
+
+    * **Decidir:** con unos rendimientos y recursos dados, ¿cuántos barcos enviar? → PL.
+    * **Predecir:** con unas condiciones dadas, ¿cuánto se capturará? → ML.
+
+    Se combinan cuando el ML **estima los coeficientes inciertos** (el rendimiento de cada tipo de
+    barco según el clima) y la PL **decide** con esas estimaciones.
+    """)
+
     if st.session_state.optimizador.modelos_entrenados:
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.subheader("⚡ Comparación de Velocidad")
-            
-            # Ejecutar Simplex
-            resultado_simplex = st.session_state.optimizador.optimizar_simplex(combustible, tripulacion, presupuesto)
-            
-            # Ejecutar ML
-            parametros_comp = {
-                'barcos_pequenos': barcos_p,
-                'barcos_medianos': barcos_m,
-                'barcos_grandes': barcos_g,
-                'combustible_disponible': combustible,
-                'tripulacion_disponible': tripulacion,
-                'presupuesto': presupuesto,
-                'temperatura_agua': temperatura,
-                'salinidad': salinidad,
-                'velocidad_viento': viento,
-                'altura_olas': olas,
-                'precio_pescado': precio,
-                'demanda_mercado': demanda,
-                'competencia_zona': competencia,
-                'mes': mes,
-                'fase_lunar': fase_lunar
-            }
-            
-            tiempos = []
-            metodos = []
-            
-            if resultado_simplex['exito']:
-                tiempos.append(resultado_simplex['tiempo_ejecucion'] * 1000)
-                metodos.append('Simplex')
-            
-            for modelo_nombre in st.session_state.optimizador.modelos_entrenados.keys():
-                resultado_ml = st.session_state.optimizador.predecir_ml(modelo_nombre, parametros_comp)
-                if resultado_ml:
-                    tiempos.append(resultado_ml['tiempo_prediccion'] * 1000)
-                    metodos.append(modelo_nombre)
-            
-            if tiempos:
-                fig_tiempo = go.Figure(data=[
-                    go.Bar(x=metodos, y=tiempos, marker_color='lightgreen')
-                ])
-                fig_tiempo.update_layout(
-                    title='Tiempo de Ejecución (ms)',
-                    xaxis_title='Método',
-                    yaxis_title='Tiempo (ms)',
-                    height=400
-                )
-                st.plotly_chart(fig_tiempo, use_container_width=True)
-        
-        with col2:
-            st.subheader("🎯 Comparación de Precisión")
-            
-            # Mostrar métricas de precisión
-            precision_data = []
-            
-            for modelo_nombre, modelo_info in st.session_state.optimizador.modelos_entrenados.items():
-                precision_data.append({
-                    'Método': modelo_nombre,
-                    'R²': modelo_info['r2'],
-                    'MSE': modelo_info['mse'],
-                    'MAE': modelo_info['mae']
-                })
-            
-            df_precision = pd.DataFrame(precision_data)
-            
-            # Gráfico de R²
-            fig_r2 = go.Figure(data=[
-                go.Bar(x=df_precision['Método'], y=df_precision['R²'], marker_color='lightblue')
-            ])
-            fig_r2.update_layout(
-                title='R² Score por Método',
-                xaxis_title='Método',
-                yaxis_title='R² Score',
-                height=400
-            )
-            st.plotly_chart(fig_r2, use_container_width=True)
-        
-        # Tabla comparativa
-        st.subheader("📋 Tabla Comparativa Completa")
-        
-        # Agregar Simplex a la comparación
-        if resultado_simplex['exito']:
-            df_precision = pd.concat([
-                pd.DataFrame([{
-                    'Método': 'Simplex',
-                    'R²': 'N/A (Determinístico)',
-                    'MSE': 'N/A',
-                    'MAE': 'N/A'
-                }]),
-                df_precision
-            ], ignore_index=True)
-        
-        st.dataframe(df_precision, use_container_width=True)
-        
-        # Recomendaciones
-        st.subheader("💡 Recomendaciones")
-        
-        mejor_r2 = df_precision.loc[df_precision['R²'] != 'N/A (Determinístico)', 'R²'].astype(float).idxmax()
-        mejor_modelo = df_precision.loc[mejor_r2, 'Método']
-        
+        st.subheader("🧠 Predecir: modelos frente a líneas base")
+        df_precision = pd.DataFrame([
+            {'Modelo': nombre, 'R² test': info['r2'], 'MSE': info['mse'], 'MAE': info['mae']}
+            for nombre, info in st.session_state.optimizador.modelos_entrenados.items()
+        ])
+        st.dataframe(df_precision, use_container_width=True, hide_index=True)
+        ml = df_precision[~df_precision['Modelo'].isin(['Media (línea base)', 'Regresión lineal'])]
+        mejor = ml.loc[ml['R² test'].idxmax()]
+        r2_lineal = df_precision.set_index('Modelo').loc['Regresión lineal', 'R² test']
         st.markdown(f"""
-        <div class="success-card">
-            <h4>🏆 Mejor Modelo por Precisión</h4>
-            <p><strong>{mejor_modelo}</strong> con R² = {df_precision.loc[mejor_r2, 'R²']:.3f}</p>
-        </div>
-        
         <div class="method-card">
-            <h4>🎯 Recomendaciones de Uso</h4>
-            <ul>
-                <li><strong>Simplex:</strong> Problemas lineales con solución óptima garantizada</li>
-                <li><strong>Random Forest:</strong> Problemas complejos con datos abundantes</li>
-                <li><strong>Gradient Boosting:</strong> Máxima precisión predictiva</li>
-                <li><strong>SVM:</strong> Problemas de alta dimensionalidad</li>
-                <li><strong>Neural Network:</strong> Patrones muy complejos</li>
-            </ul>
+            <p>Mejor modelo de ML: <strong>{mejor['Modelo']}</strong> (R² = {mejor['R² test']:.3f}).
+            Regresión lineal: R² = {r2_lineal:.3f}. Un R² negativo significaría predecir peor que la media;
+            se muestra tal cual.</p>
+            <p>Como los datos son sintéticos, un R² alto solo indica que el modelo se acerca a la fórmula
+            con la que se generaron.</p>
         </div>
         """, unsafe_allow_html=True)
-    
+
+        st.subheader("🚀 Predecir y luego optimizar, con las condiciones de la barra lateral")
+        clima = {'temperatura_agua': temperatura, 'salinidad': salinidad, 'velocidad_viento': viento,
+                 'altura_olas': olas, 'mes': mes, 'fase_lunar': fase_lunar}
+        # En este mundo sintético conocemos el rendimiento verdadero: sirve de referencia
+        rend_real = nio.rendimiento_verdadero(temperatura, viento, mes, fase_lunar)[0]
+        estrategias = {'Coeficientes nominales (sin ML)': nio.RENDIMIENTO_NOMINAL}
+        for nombre in st.session_state.optimizador.modelos_rendimiento:
+            estrategias[f'{nombre} + PL'] = st.session_state.optimizador.estimar_rendimientos(nombre, clima)
+        estrategias['Rendimientos verdaderos (referencia)'] = rend_real
+
+        opt = st.session_state.optimizador.optimizar_simplex(combustible, tripulacion, presupuesto, rend_real)
+        if opt['exito']:
+            filas = []
+            for nombre, coef in estrategias.items():
+                plan = st.session_state.optimizador.optimizar_simplex(combustible, tripulacion, presupuesto, coef)
+                obtenido = float(rend_real @ plan['x'])
+                filas.append({
+                    'Origen de los coeficientes': nombre,
+                    'kg/barco (P / M / G)': ' / '.join(f'{c:.0f}' for c in coef),
+                    'Plan (P / M / G)': ' / '.join(f'{v:.1f}' for v in plan['x']),
+                    'Captura real obtenida (kg)': round(obtenido, 1),
+                    '% del óptimo': round(100 * obtenido / opt['capturas_esperadas'], 2),
+                })
+            st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
+            st.caption("La decisión se evalúa con los rendimientos verdaderos (conocidos porque los datos son "
+                       "sintéticos). Prueba a subir el viento: castiga más a los barcos pequeños y la combinación "
+                       "óptima cambia. El resultado agregado en muchos escenarios está en "
+                       "reporte_ejecutivo_analisis_io.html.")
+        else:
+            st.warning(opt['mensaje'])
     else:
-        st.warning("⚠️ Primero entrena los modelos ML para realizar comparaciones")
+        st.warning("⚠️ Primero entrena los modelos ML en la barra lateral")
 
 # Tab 4: Análisis
 with tab4:
@@ -790,7 +598,7 @@ with tab4:
             
             # Seleccionar variables numéricas principales
             vars_principales = [
-                'capturas_totales', 'beneficio_neto', 'eficiencia_operativa',
+                'capturas_totales', 'capturas_por_barco',
                 'temperatura_agua', 'velocidad_viento', 'precio_pescado',
                 'combustible_disponible', 'presupuesto'
             ]
@@ -812,7 +620,7 @@ with tab4:
             
             variable_analisis = st.selectbox(
                 "Selecciona variable para análisis:",
-                ['capturas_totales', 'beneficio_neto', 'eficiencia_operativa']
+                ['capturas_totales', 'capturas_por_barco']
             )
             
             fig_dist = px.histogram(
@@ -828,25 +636,22 @@ with tab4:
             st.subheader("🌊 Análisis por Condiciones Ambientales")
             
             # Crear una muestra para mejor rendimiento
-            muestra_datos = datos.sample(500)
+            muestra_datos = datos.sample(min(500, len(datos)), random_state=0)
             
-            # Normalizar beneficio_neto para el tamaño (valores positivos)
-            beneficio_normalizado = muestra_datos['beneficio_neto'] - muestra_datos['beneficio_neto'].min() + 1
             
             fig_scatter = px.scatter(
                 muestra_datos,
                 x='temperatura_agua',
                 y='capturas_totales',
                 color='velocidad_viento',
-                size=beneficio_normalizado,
-                title='Capturas vs Temperatura (Color: Viento, Tamaño: Beneficio)',
+                title='Capturas vs Temperatura (Color: Viento)',
                 hover_data=['salinidad', 'altura_olas']
             )
             fig_scatter.update_layout(height=400)
             st.plotly_chart(fig_scatter, use_container_width=True)
         
         # Análisis de sensibilidad
-        st.subheader("🔍 Análisis de Sensibilidad")
+        st.subheader("🔍 Capturas según las condiciones (exploratorio)")
         
         col3, col4 = st.columns([1, 1])
         
@@ -869,15 +674,15 @@ with tab4:
         with col4:
             # Impacto del viento
             viento_groups = pd.cut(datos['velocidad_viento'], bins=5, labels=['Calma', 'Brisa Suave', 'Brisa Moderada', 'Brisa Fuerte', 'Viento Fuerte'])
-            viento_analysis = datos.groupby(viento_groups)['eficiencia_operativa'].mean()
+            viento_analysis = datos.groupby(viento_groups)['capturas_por_barco'].mean()
             
             fig_viento = go.Figure(data=[
                 go.Bar(x=viento_analysis.index, y=viento_analysis.values, marker_color='lightblue')
             ])
             fig_viento.update_layout(
-                title='Eficiencia Promedio por Velocidad del Viento',
+                title='Captura media por barco según el viento',
                 xaxis_title='Categoría de Viento',
-                yaxis_title='Eficiencia Promedio',
+                yaxis_title='kg por barco',
                 height=400
             )
             st.plotly_chart(fig_viento, use_container_width=True)
@@ -886,7 +691,7 @@ with tab4:
         st.subheader("🧠 Insights Automáticos")
         
         # Calcular correlaciones más fuertes
-        corr_capturas = datos.corr()['capturas_totales'].abs().sort_values(ascending=False)
+        corr_capturas = datos.drop(columns=['capturas_por_barco']).corr()['capturas_totales'].abs().sort_values(ascending=False)
         factor_mas_importante = corr_capturas.index[1]  # Excluir la correlación consigo mismo
         correlacion_valor = corr_capturas.iloc[1]
         
@@ -900,8 +705,7 @@ with tab4:
             <h4>📊 Estadísticas Clave</h4>
             <ul>
                 <li><strong>Capturas Promedio:</strong> {datos['capturas_totales'].mean():.1f} kg</li>
-                <li><strong>Beneficio Promedio:</strong> ${datos['beneficio_neto'].mean():.2f}</li>
-                <li><strong>Eficiencia Promedio:</strong> {datos['eficiencia_operativa'].mean():.2f}</li>
+                <li><strong>Captura media por barco:</strong> {datos['capturas_por_barco'].mean():.1f} kg</li>
                 <li><strong>Mejor Mes:</strong> {datos.groupby('mes')['capturas_totales'].mean().idxmax()}</li>
             </ul>
         </div>
@@ -916,6 +720,6 @@ st.markdown("""
 <div style="text-align: center; color: #666; margin-top: 2rem;">
     <p>🚀 <strong>IO Interactive</strong> - Desarrollado para CONIPE 2025</p>
     <p>Comparación Interactiva de Métodos de Investigación Operativa</p>
-    <p><em>Simplex vs Machine Learning vs Enfoques Híbridos</em></p>
+    <p><em>Decidir (Simplex) · Predecir (ML) · Predecir y optimizar — con datos sintéticos</em></p>
 </div>
 """, unsafe_allow_html=True)
